@@ -1,7 +1,6 @@
 # directories to ignore
-linflow/plots/
-
-
+linflow/plots
+datasets/*/torch-dataset
 # Ignore IDE specific files
 .idea/
 .vscode/
