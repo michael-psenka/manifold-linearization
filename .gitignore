@@ -1,6 +1,8 @@
 # directories to ignore
 linflow_archive/plots
 datasets/*/torch-dataset
+# ignore all Jupyter notebooks
+*.ipynb
 # Ignore IDE specific files
 .idea/
 .vscode/
