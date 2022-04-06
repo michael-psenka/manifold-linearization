@@ -6,10 +6,10 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from ..modules import flatten-patches
+from modules import flatten_patches
 
 
-
+flatten_patches.hither()
 # *****************************************************************************
 # This is the primary script for the curvature compression algorithm.
 # Input: data matrix X of shape (D,n), where D is the embedding dimension and
@@ -20,3 +20,4 @@ from ..modules import flatten-patches
 def cc(X):
 	# STEP 1: determine appropriate neighborhoods
 	# N, E = 
+	return -1
