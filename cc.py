@@ -10,7 +10,7 @@ from modules import flatten_patches
 
 
 flatten_patches.hither()
-# *****************************************************************************
+# ****************************i*************************************************
 # This is the primary script for the curvature compression algorithm.
 # Input: data matrix X of shape (D,n), where D is the embedding dimension and
 # n is the number of data points; 
