@@ -17,14 +17,15 @@ class Manifold:
 
     # Represent functions f(x): R^D -> R with fourier basis
     # cos(pi*<u,x>) for fixed vector u
-    self.basis = torch.randn(d, D, n_basis)
+    curv_param = torch.sqrt(torch.Tensor([self.curvature]))
+    self.basis = curv_param*torch.randn(d, D, n_basis)
     # coefficients of basis functions, random element on unit sphere
     # of norm D
     self.coeffs = torch.randn(D, n_basis)
     self.coeffs /= torch.norm(self.coeffs) / D
 
-  def embedCoordinate(self, psi):
-    # TODO: unit test all tensor shapes
+  def embedCoordinates(self, psi):
+    # TODO: add sin component
     # Evaluate the manifold at set of coordinates psi
     # psi: R^(d x N)
     # returns:=x in R^(D x N)
@@ -35,10 +36,12 @@ class Manifold:
     # (output is of shape (D, N, n_basis))
     basis_eval = (self.basis.reshape((self.d, self.D, 1, self.n_basis)) \
       * psi.reshape((self.d, 1, N, 1))).sum(dim=0)
+    print(basis_eval.shape)
 
     # Evaluate the manifold at psi
     coeffs_reshape = self.coeffs.reshape((self.D, 1, self.n_basis))
-    return (coeffs_reshape*torch.cos(torch.pi * basis_eval)).sum(dim=2)
+    print((coeffs_reshape*torch.sin(torch.pi * basis_eval)).sum(dim=2).shape)
+    return (coeffs_reshape*torch.sin(torch.pi * basis_eval)).sum(dim=2)
 
   def generateSample(self, N, uniform=False):
     # Generate N samples from the manifold
@@ -47,12 +50,12 @@ class Manifold:
 
     # Generate N random coordinates
     if uniform:
-      psi = torch.rand((self.D, N))
+      psi = torch.rand((self.d, N))
     else:
-      psi = torch.randn((self.D, N))
+      psi = torch.randn((self.d, N))
 
     # Evaluate the manifold at the coordinates
-    x = self.embedCoordinate(psi)
+    x = self.embedCoordinates(psi)
     return x
 
   

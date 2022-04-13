@@ -5,6 +5,11 @@ datasets/*/torch-dataset
 .ipynb_checkpoints
 */.ipynb_checkpoints/*
 
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
 # IPython
 profile_default/
 ipython_config.py
