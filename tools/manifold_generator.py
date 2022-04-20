@@ -57,7 +57,7 @@ class Manifold:
     N = psi.shape[1]
     x_psi = torch.zeros(self.D, N)
     x_psi[:self.d, :] = psi
-    t = torch.tensor([0.0,1])
+    t = torch.tensor([0.0,0.3])
     x = odeint(self.vecField, x_psi, t)
     return x[1,:,:]
 
@@ -68,7 +68,8 @@ class Manifold:
 
     # Generate N random coordinates
     if uniform:
-      psi = torch.rand((self.d, N))
+      # uniform btwn [-1,1]
+      psi = 2*torch.rand((self.d, N)) - 1
     else:
       psi = torch.randn((self.d, N))
 
