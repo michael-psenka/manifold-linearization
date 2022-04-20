@@ -1,5 +1,9 @@
+import typing
 import torch
 import matplotlib.pyplot as plt
+
+n = 1000
+d = 2
 
 
 class RPTree:
@@ -49,26 +53,30 @@ class RPTree:
             self.left_subtree.fit(S[self.rule(S)])
             self.right_subtree.fit(S[torch.logical_not(self.rule(S))])
 
-    def segment(self, S):
+    def segment(self, S: torch.Tensor):
         if self.depth == 0:
-            return [S]
+            return S
         else:
             assert self.left_subtree is not None
             left_segments = self.left_subtree.segment(S[self.rule(S)])
             right_segments = self.right_subtree.segment(S[torch.logical_not(self.rule(S))])
-            return left_segments + right_segments
+            return left_segments, right_segments
 
 
-
-w = torch.randn((50,))
-fw = w ** 2 - w + 1
-S = torch.stack(tensors=[w, fw]).T
-print(S.shape)
-tree = RPTree(depth=3, c=2.0)
+S = torch.cat(tensors=(torch.randn(n // 2, d) + 0.1*torch.ones(d), torch.randn(n // 2, d) - 0.1*torch.ones(d)))
+tree = RPTree(depth=2, c=2.0)
 tree.fit(S)
 segments = tree.segment(S)
 
-for segment in segments:
-    plt.scatter(segment[:, 0], segment[:, 1])
 
+# do bfs for scatterplot
+def plot_segments(segment):
+    if isinstance(segment, tuple):
+        plot_segments(segment[0])
+        plot_segments(segment[1])
+    else:
+        plt.scatter(segment[:, 0], segment[:, 1])
+
+
+plot_segments(segments)
 plt.show()
