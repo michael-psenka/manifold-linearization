@@ -7,65 +7,66 @@ d = 2
 
 
 class RPTree:
-    def __init__(self, depth: int, c:float):
-        self.depth = depth
-        self.c = c
-        if self.depth == 0:
-            self.S = None
+    def __init__(self, X: torch.Tensor, min_size: int, c: float):
+        self.is_leaf = False
+        if X.shape[0] < min_size:
+            self.X = X
+            self.is_leaf = True
         else:
-            self.left_subtree = RPTree(depth - 1, c)
-            self.right_subtree = RPTree(depth - 1, c)
-            self.rule = None
+            self.rule = self.choose_rule_pca(X, c)
+            left_data = X[self.rule(X)]
+            right_data = X[torch.logical_not(self.rule(X))]
+            self.left_subtree = RPTree(left_data, min_size, c)
+            self.right_subtree = RPTree(right_data, min_size, c)
 
-    def fit(self, S: torch.Tensor):  # (n, d)
-        if self.depth == 0:
-            self.S = S
+    def choose_rule_pca(self, X: torch.Tensor, c: int):
+        Sigma = torch.cov(X.T)
+        Lambda, Q = torch.linalg.eigh(Sigma)
+        u = Q[:, 0]
+        proj = X @ u
+        median_proj = torch.median(proj)
+        return lambda x: x @ u <= median_proj
+
+    def choose_rule_max(self, X: torch.Tensor, c: int):
+        v = torch.randn((X.shape[1], ))
+        x_idx = torch.randint(low=0, high=X.shape[0], size=())
+        x = X[x_idx]
+        y_idx = torch.argmax(torch.norm(X - x, dim=1))
+        y = X[y_idx]
+        delta = (2*torch.rand(size=()) - 1) * 6 * torch.linalg.norm(x - y) / (X.shape[1] ** 0.5)
+        proj = X @ v
+        median_proj = torch.median(proj)
+        return lambda x: x @ v <= median_proj + delta
+
+    def choose_rule_mean(self, X: torch.Tensor, c: float):
+        pairwise_distances = torch.cdist(X, X)
+        Delta_sq = torch.max(pairwise_distances) ** 2
+        Delta_A_sq = torch.sum(pairwise_distances ** 2) / (X.shape[0] ** 2)
+        if Delta_sq <= c * Delta_A_sq:
+            v = torch.randn((X.shape[1], ))
+            proj = X @ v
+            median_proj = torch.median(proj)
+            return lambda x: x @ v <= median_proj
         else:
-            pairwise_distances = torch.cdist(S, S)  # (n, n)
-            pairwise_sq_distances = torch.square(pairwise_distances)  # (n, n)
-            Delta_sq = torch.max(pairwise_sq_distances)  # ()
-            Delta_A_sq = torch.sum(pairwise_sq_distances) / (S.shape[0] ** 2)
-            if Delta_sq <= self.c * Delta_A_sq:
-                v = torch.randn(S.shape[1])  # (d, )
-                projections = S @ v  # (n, )
-                sorted_projections = torch.sort(projections)[0]  # (n, )
+            mean = torch.mean(X, dim=0)
+            median_distance_from_mean = torch.median(torch.linalg.norm(X - mean, dim=1))
+            return lambda x: torch.linalg.norm(x - mean, dim=-1) <= median_distance_from_mean
 
-                c_min = float('inf')
-                i_min = -1
-
-                mu_1 = 0.0
-                mu_2 = torch.mean(sorted_projections)
-                for i in range(S.shape[0] - 1):
-                    mu_1 = ((i * mu_1) + sorted_projections[i]) / (i + 1)
-                    mu_2 = (((S.shape[0] - i) * mu_2) - sorted_projections[i]) / (S.shape[0] - i - 1)
-                    c_i = torch.sum(torch.square(sorted_projections[:i] - mu_1)) + \
-                          torch.sum(torch.square(sorted_projections[i:] - mu_2))
-                    if c_i < c_min:
-                        c_min = c_i
-                        i_min = i
-                theta = (sorted_projections[i_min] + sorted_projections[i_min + 1]) / 2
-                self.rule = lambda x: x @ v <= theta
-            else:
-                mean = torch.mean(S, dim=0)  # (d, )
-                distances = torch.linalg.norm(S - mean, dim=1)
-                median_dist = torch.median(distances)
-                self.rule = lambda x: torch.linalg.norm(x - mean, dim=-1) <= median_dist
-            self.left_subtree.fit(S[self.rule(S)])
-            self.right_subtree.fit(S[torch.logical_not(self.rule(S))])
-
-    def segment(self, S: torch.Tensor):
-        if self.depth == 0:
-            return S
+    def segment(self, X: torch.Tensor):
+        if self.is_leaf:
+            return X
         else:
-            assert self.left_subtree is not None
-            left_segments = self.left_subtree.segment(S[self.rule(S)])
-            right_segments = self.right_subtree.segment(S[torch.logical_not(self.rule(S))])
+            left_segments = self.left_subtree.segment(X[self.rule(X)])
+            right_segments = self.right_subtree.segment(X[torch.logical_not(self.rule(X))])
             return left_segments, right_segments
 
 
-S = torch.cat(tensors=(torch.randn(n // 2, d) + 0.1*torch.ones(d), torch.randn(n // 2, d) - 0.1*torch.ones(d)))
-tree = RPTree(depth=2, c=2.0)
-tree.fit(S)
+
+
+w = torch.randn((n,))
+fw = torch.sin(w)
+S = torch.stack([w, fw]).T
+tree = RPTree(S, min_size=250, c=100.0)
 segments = tree.segment(S)
 
 
