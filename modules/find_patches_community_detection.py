@@ -40,7 +40,8 @@ class CommunityDetection:
 
 def find_patches(X: torch.Tensor):
     """
-    Finds the neighborhoods in X. Neighborhoods are disjoint for now.
+    Finds the neighborhoods in X. Neighborhoods are disjoint for now, but there is a principled merging scheme
+    (run a few more iterations of Clauset-Newman-Moore and see which communities it chooses to merge).
 
     :param X: data matrix, (n, d)
     :return: a list of index sets I_k where each I_k is a community and U I_k = {1, ..., n}
