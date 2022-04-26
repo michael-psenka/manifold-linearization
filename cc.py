@@ -18,11 +18,6 @@ from modules import cc_nn, find_patches, flatten_patches, \
 # Output: a neural network f: R^D -> R^d, where d is the intrinsic dimension of
 # the data manifold X is drawn from.
 
-# NOTE: this will always two a two-step flattening:
-	# 1. flatten all patches, keeping curvature low
-	# 2. find global flattening
-# later, we will want to iteratively merge patches
-
 def cc(X, Np=-1, E=-1):
 	# HYPERPARAMTERs
 	_gamma = 1
