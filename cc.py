@@ -19,7 +19,7 @@ from modules import cc_nn, find_patches, flatten_patches, \
 # the data manifold X is drawn from.
 
 def cc(X, Np=-1, E=-1):
-	# HYPERPARAMTERs
+	# HYPERPARAMTERS
 	_gamma = 1
 	# set up needed variables
 	d, N = X.shape
