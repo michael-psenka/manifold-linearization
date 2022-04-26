@@ -28,7 +28,10 @@ class CCLayer(nn.Module):
 
 		# if only one neighborhood, simply global projection operator
 		if self.k == 1:
-			return 
+			# note we don't need offset for global linear operator
+			return X - self.U@self.U.T@X
+
+		# otherwise, we need smooth mixing of local operators
 		N = X.shape[1]
 
 		# vector offsets for affine projectors
