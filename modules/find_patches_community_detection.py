@@ -13,6 +13,9 @@ class CommunityDetection:
 
         :param X: data matrix, (d, n)
         :param eps: perturbation to avoid divide-by-zero error, default=1e-8 should be good
+
+        properties:
+        knn_graph: networkx graph, where nodes are data points, and edges are 1/d(xi, xj) for k nearest neighbors
         """
         d, n = X.shape
         k = min(int(n ** 0.5) + 1, n)
@@ -35,6 +38,8 @@ class CommunityDetection:
         knn_graph.data = 1 / (knn_data + eps)
         # convert to networkx
         knn_graph = nx.from_scipy_sparse_matrix(knn_graph)
+
+        self.knn_graph = knn_graph
 
 
     def find_communities(self):
