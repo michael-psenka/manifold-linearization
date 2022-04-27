@@ -2,6 +2,8 @@ import networkx as nx
 import networkx.algorithms.community as nx_comm
 import torch
 
+from sklearn.neighbors import kneighbors_graph
+
 
 class CommunityDetection:
     def __init__(self, X: torch.Tensor, eps: float = 1e-8):
@@ -9,20 +11,31 @@ class CommunityDetection:
         Builds KNN graph, where k = O(sqrt(n)). Vertices are n data points xi, edges are 1/d(xi, xj)
         if xj is one of the k nearest neighbors of xi.
 
-        :param X: data matrix, (n, d)
+        :param X: data matrix, (d, n)
         :param eps: perturbation to avoid divide-by-zero error, default=1e-8 should be good
         """
-        n, d = X.shape
-        k = min(int(n ** 0.5) + 1, X.shape[0])
-        pairwise_distances = torch.cdist(X, X)
-        sorted_pairwise_distances, sorted_indices = torch.sort(pairwise_distances, dim=1)
-        sorted_pairwise_distances = sorted_pairwise_distances.tolist()
-        sorted_indices = sorted_indices.tolist()
+        d, n = X.shape
+        k = min(int(n ** 0.5) + 1, n)
+        # EXPLICIT COMPUTATION
+        # pairwise_distances = torch.cdist(X, X)
+        # sorted_pairwise_distances, sorted_indices = torch.sort(pairwise_distances, dim=1)
+        # sorted_pairwise_distances = sorted_pairwise_distances.tolist()
+        # sorted_indices = sorted_indices.tolist()
 
-        self.knn_graph = nx.Graph()
-        for i in range(n):
-            for j in range(1, k):
-                self.knn_graph.add_edge(i, sorted_indices[i][j], weight=1/(sorted_pairwise_distances[i][j] + eps))
+        # self.knn_graph = nx.Graph()
+        # for i in range(n):
+        #     for j in range(1, k):
+        #         self.knn_graph.add_edge(i, sorted_indices[i][j], weight=1/(sorted_pairwise_distances[i][j] + eps))
+
+        # VECTORIZED COMPUTATION
+        # output is a scipy sparse matrix
+        knn_graph = kneighbors_graph(X.T, k, mode='distance', include_self=False)
+        # multiplicative inverse of all nonzero entries
+        knn_data = knn_graph.data
+        knn_graph.data = 1 / (knn_data + eps)
+        # convert to networkx
+        knn_graph = nx.from_scipy_sparse_matrix(knn_graph)
+
 
     def find_communities(self):
         """
@@ -43,7 +56,7 @@ def find_patches(X: torch.Tensor):
     Finds the neighborhoods in X. Neighborhoods are disjoint for now, but there is a principled merging scheme
     (run a few more iterations of Clauset-Newman-Moore and see which communities it chooses to merge).
 
-    :param X: data matrix, (n, d)
+    :param X: data matrix, (d, n)
     :return: a list of index sets I_k where each I_k is a community and U I_k = {1, ..., n}
     """
     return CommunityDetection(X).find_communities()
