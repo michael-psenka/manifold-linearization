@@ -56,7 +56,7 @@ class CommunityDetection:
 
         :return: a list of index sets where each index set is a community
         """
-        return nx_comm.greedy_modularity_communities(self.knn_graph)
+        return nx_comm.louvain_communities(self.knn_graph)
 
 
 def find_patches(X: torch.Tensor, k: int = -1):
