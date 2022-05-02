@@ -47,7 +47,7 @@ class CommunityDetection:
 
     def find_communities(self):
         """
-        Finds the communities in the KNN graph via Clauset-Newman-Moore greedy modularity maximization.
+        Finds the communities in the KNN graph via Louvain community detection algorithm.
         How this works: lots of points which are very close to each other are considered a "community", and
         regions which are far away are considered different communities. Finds best number of communities
         and partitions the vertices into these communities.
