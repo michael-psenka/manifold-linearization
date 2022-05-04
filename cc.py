@@ -6,8 +6,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from modules import cc_nn, find_patches, flatten_patches, \
-	merge_patches, pca_init
+from modules import cc_nn, pca_init, find_patches_community_detection
 # ****************************i*************************************************
 # This is the primary script for the curvature compression algorithm.
 # Input: data matrix X of shape (D,n), where D is the embedding dimension and
@@ -18,28 +17,42 @@ from modules import cc_nn, find_patches, flatten_patches, \
 # Output: a neural network f: R^D -> R^d, where d is the intrinsic dimension of
 # the data manifold X is drawn from.
 
-def cc(X, Np=-1, E=-1):
+# k is number of neighborhoods for kNN graph to approximate manifold
+
+def cc(X, k):
 	# HYPERPARAMTERS
 	_gamma = 1
 	# set up needed variables
 	d, N = X.shape
-	mu = X.mean(axis=1, keepdim=True)
+	cc_network = cc_nn.CCNetwork()
 
-	cc_network = cc_nn.CCNetwork(mu)
+	mu = X.mean(axis=1, keepdim=True)
+	
+	# add centering to network
+	cc_network.add_operation(cc_nn.CCRecenter(mu))
+	X = X - mu
+	print('Init PCA to reduce nonnecessary dimensions...')
 	# STEP 0: use PCA to project out machine-precision directions
-	X, U_r = pca_init(X - mu)
+	X, U_r = pca_init.pca_init(X)
 	# add PCA operation to network
 	cc_network.add_module("pca", cc_nn.LinearCol(U_r.T))
 	# new ambient dimension, rank of PCA
-	d_current = U.shape[1]
+	d_current = U_r.shape[1]
 
+	# find neighborhood index sets
+	print('Finding neighborhoods...')
+	ind_N = find_patches_community_detection.find_patches(X.cpu(), k)
+	
+	# TODO: construct neighborhood membership operators
+	# TODO: widen memberhship operators a little to overlap
 
+	# TODO: add init Pi membership layer
+
+	print('Beginning main construction loop.')
 	# MAIN LOOP: looping through ambient dimension d_current until
 	# it has been reduced as much as possible
 	has_converged = False
 	while not has_converged:
-		# STEP 1: find patches
-		Np, E = find_patches(X)
 
 		# INNER LOOP: flatten and merge patches
 		k = Np.shape[1]
@@ -47,12 +60,12 @@ def cc(X, Np=-1, E=-1):
 		# our first flattening is from the points within each neighborhood
 		# we also check here to see if the manifold has been flattened
 		# everywhere -- if so, impossible to compress further
-		U, alpha, has_converged = flatten_patches.flatten_from_points(X, Np, E)
+		U, alpha, has_converged = flatten_patches.flatten_from_points(X_i, E)
 		# if test for convergence is true, we don't want to add the above
 		# generated layer
 		if has_converged:
 			break
-
+		
 		# add layer to network
 		cc_layer = cc_nn.CCLayer(Np, U, alpha, _gamma)
 		# add to network

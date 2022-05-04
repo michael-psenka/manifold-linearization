@@ -1,3 +1,5 @@
+# torch datasets
+torch-dataset/
 # directories to ignore
 linflow_archive/plots
 datasets/*/torch-dataset
