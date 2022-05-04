@@ -40,10 +40,9 @@ class CommunityDetection:
         knn_data = knn_graph.data
         knn_graph.data = 1 / (knn_data + eps)
         # convert to networkx
-        knn_graph = nx.from_scipy_sparse_matrix(knn_graph)
+        knn_graph = nx.from_scipy_sparse_array(knn_graph)
 
         self.knn_graph = knn_graph
-
 
     def find_communities(self):
         """
