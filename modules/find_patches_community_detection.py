@@ -1,3 +1,5 @@
+import copy
+
 import networkx as nx
 import networkx.algorithms.community as nx_comm
 import torch
@@ -57,8 +59,48 @@ class CommunityDetection:
         """
         return nx_comm.louvain_communities(self.knn_graph)
 
+    def find_merge_path(self, communities):
+        """
+        Finds the best order to merge communities in, by checking which merge order maximizes the modularity.
+        This is done naively, so it's cubic in the number of communities, but this is usually <= 100 so this isn't
+        any kind of issue.
 
-def find_patches(X: torch.Tensor, k: int = -1):
+        :param communities: list of index sets
+        :return: merge path
+        """
+        merge_path = []
+        current_neighborhood_indices = [{i} for i in range(len(communities))]
+        current_communities = copy.deepcopy(communities)
+        merge_path.append(copy.deepcopy(current_neighborhood_indices))
+
+        while len(current_neighborhood_indices) > 1:
+            max_modularity = -float('inf')
+            max_modularity_ij = (-1, -1)
+            for i in range(len(current_neighborhood_indices)):
+                for j in range(i):
+                    # test merging i and j
+                    communities_ij = copy.deepcopy(current_communities)
+                    communities_ij.append(current_communities[i] | current_communities[j])
+                    communities_ij.pop(i)
+                    communities_ij.pop(j)
+                    modularity_ij = nx_comm.modularity(self.knn_graph, communities_ij)
+                    if max_modularity < modularity_ij:
+                        max_modularity = modularity_ij
+                        max_modularity_ij = (i, j)
+            best_i, best_j = max_modularity_ij
+            current_communities.append(current_communities[best_i] | current_communities[best_j])
+            current_communities.pop(best_i)
+            current_communities.pop(best_j)
+            current_neighborhood_indices.append(current_neighborhood_indices[best_i] | current_neighborhood_indices[best_j])
+            current_neighborhood_indices.pop(best_i)
+            current_neighborhood_indices.pop(best_j)
+
+            merge_path.append(copy.deepcopy(current_neighborhood_indices))
+
+        return merge_path
+
+
+def find_patches_and_merge_path(X: torch.Tensor, k: int = -1):
     """
     Finds the neighborhoods in X. Neighborhoods are disjoint for now, but there is a principled merging scheme
     (run a few more iterations of Clauset-Newman-Moore and see which communities it chooses to merge).
@@ -67,4 +109,11 @@ def find_patches(X: torch.Tensor, k: int = -1):
     :param k: number of neighbors to consider
     :return: a list of index sets I_k where each I_k is a community and U I_k = {1, ..., n}
     """
-    return CommunityDetection(X, k = k).find_communities()
+    cd = CommunityDetection(X, k = k)
+    communities = cd.find_communities()
+    merge_path = cd.find_merge_path(communities)
+    return communities, merge_path
+
+
+X = torch.randn(10, 10000)
+find_patches_and_merge_path(X)
