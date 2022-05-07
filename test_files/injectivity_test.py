@@ -1,6 +1,6 @@
 import typing
 import torch
-import pytorch_lighting as pl
+import pytorch_lightning as pl
 
 
 def injectivity_distance_ratio(
@@ -22,7 +22,7 @@ def injectivity_distance_ratio(
     return torch.min(Z_distances / X_distances)
 
 
-class TwoLayerRegressionNN(torch.nn.Module):
+class TwoLayerRegressionNN(pl.LightningModule):
     def __init__(self, d_in: int, d_latent: int, d_out: int):
         super(TwoLayerRegressionNN, self).__init__()
         self.fc1 = torch.nn.Linear(d_in, d_latent)
@@ -31,36 +31,47 @@ class TwoLayerRegressionNN(torch.nn.Module):
     def forward(self, x: torch.Tensor):
         return self.fc2(torch.nn.functional.relu(self.fc1(x)))
 
-def train_twolayer_regression_nn(X: torch.Tensor, Z: torch.Tensor, d_latent: int, lmbda: float = 500,
-                                 lr: float = 1e-3, epochs: int = 5, batch_size: int = 20):  # (d, n), (D, n)
-    X = X.T  # (n, d)
-    Z = Z.T  # (n, D)
+
+def train_twolayer_regression_nn(X: torch.Tensor, Z: torch.Tensor, d_latent: int = 100, lmbda: float = 500,
+                                 lr: float = 1e-3, epochs: int = 10, batch_size: int = 20):  # (d, n), (D, n)
+    X_copy = torch.clone(X)
+    Z_copy = torch.clone(Z)
+    X_copy.detach()
+    Z_copy.detach()
+
+    X = X_copy.T  # (n, d)
+    Z = Z_copy.T  # (n, D)
+
     n, d = X.shape
     D = Z.shape[1]
 
-    nn = TwoLayerRegressionNN(D, d_latent, d)  # represents mapping R^D -> R^d
+    nn = TwoLayerRegressionNN(d, d_latent, D)  # represents mapping R^d -> R^D
     optimizer = torch.optim.Adam(nn.parameters(), lr=lr)
 
-    dataset = torch.utils.data.TensorDataset(Z, X)
+    dataset = torch.utils.data.TensorDataset(X, Z)
     dataloader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, shuffle=True)
 
     for epoch in range(epochs):
         for idx, data in enumerate(dataloader):
-            z_batch, x_batch = data  # (n_i, D), (n_i, d)
-            z_batch = z_batch.T  # (D, n_i)
-            x_batch = x_batch.T  # (d, n_i)
+            x_batch, z_batch = data  # (n_i, d), (n_i, D)
 
             optimizer.zero_grad()
 
-            x_predicted = nn(z_batch)  # (d, n_i)
-            loss = torch.linalg.norm(x_predicted - x_batch) ** 2 \
-                   + lmbda * sum(torch.linalg.norm(Ai) ** 2 for Ai in nn.parameters())
+            z_predicted = nn(x_batch)  # (n_i, D)
+
+            mse = torch.linalg.norm(z_predicted - z_batch) ** 2
             # i know you can use weight decay but wanted to be more explicit
-            loss.backward()
+            l2_weights = sum(torch.linalg.norm(Ai) ** 2 for Ai in nn.parameters())
+            loss = mse + lmbda * l2_weights
+            loss.backward(retain_graph=True)
+
             optimizer.step()
-        X_predicted = nn(Z)
+
+        nn.eval()
+        Z_predicted = nn(X)
+        nn.train()
         print(f"Epoch {epoch}:")
-        print(f"Squared error = ", torch.linalg.norm(X_predicted - X) ** 2)
+        print(f"MSE = ", (torch.linalg.norm(Z_predicted - Z) ** 2) / n)
         print(f"Parameter weights = ", sum(torch.linalg.norm(Ai) ** 2 for Ai in nn.parameters()))
         print("\n")
     nn.eval()
@@ -74,5 +85,5 @@ def injectivity_nn_weights(
         lmbda: float = 500
 ):
     Z = F(X.T).T  # (D, n)
-    G_nn = train_twolayer_regression_nn(X, Z, d_latent, lmbda)
+    G_nn = train_twolayer_regression_nn(Z, X, d_latent, lmbda, epochs=1000)
     return sum(torch.linalg.norm(Ai) ** 2 for Ai in G_nn.parameters())
