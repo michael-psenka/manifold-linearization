@@ -143,6 +143,8 @@ class LinearCol(nn.Module):
 	def forward(self, x):
 		return self.A@x
 
+# simple translation, needed when we recenter data
+# akin to layer normalization
 class CCRecenter(nn.Module):
 	def __init__(self, mu):
 		super(CCRecenter, self).__init__()
