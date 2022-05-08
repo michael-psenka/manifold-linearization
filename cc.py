@@ -20,8 +20,15 @@ from modules import cc_nn, pca_init, find_patches_community_detection
 # k is number of neighborhoods for kNN graph to approximate manifold
 
 def cc(X, k):
-	# HYPERPARAMTERS
+	######### HYPERPARAMTERS ####
+	# used for softmax
 	_gamma = 1
+	# noise tolerance fo rdata
+	_eps = 1e-2
+	##############################
+	#  how much to widen neighborhoods for neighboring detection
+	_eps_N = 0
+
 	# set up needed variables
 	d, N = X.shape
 	cc_network = cc_nn.CCNetwork()
@@ -41,10 +48,9 @@ def cc(X, k):
 
 	# find neighborhood index sets
 	print('Finding neighborhoods...')
-	ind_N = find_patches_community_detection.find_patches(X.cpu(), k)
-	
-	# TODO: construct neighborhood membership operators
-	# TODO: widen memberhship operators a little to overlap
+
+	ind_X, merges, A_N, mu_N, G_N = \
+		find_patches_community_detection.find_neighborhood_structure(X, k, _eps, _eps_N)
 
 	# TODO: add init Pi membership layer
 
