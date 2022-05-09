@@ -24,7 +24,7 @@ def flatten_from_points(Z, ind_Z, G_N0):
 	flatten = FlattenFromPoints(Z, ind_Z, G_N0, U_0)
 	opt = optim.SGD(flatten.parameters(), lr=0.1)
 
-	for i in range(1000):
+	for i in range(100):
 		flatten.zero_grad()
 		# forward call of LinFlow
 		loss = flatten()
@@ -63,7 +63,7 @@ def flatten_from_normals(U_base, merge, G):
 	flatten = FlattenFromNormals(U_base, merge, G, U_0)
 	opt = optim.SGD(flatten.parameters(), lr=0.1)
 
-	for i in range(1000):
+	for i in range(100):
 		flatten.zero_grad()
 		# forward call of LinFlow
 		loss = flatten()
@@ -103,7 +103,7 @@ def align_offsets(ZPi, U):
 	align = AlignOffsets(Z, Pi, U, alpha_0)
 	opt = optim.SGD(align.parameters(), lr=0.1)
 
-	for i in range(1000):
+	for i in range(100):
 		align.zero_grad()
 		# forward call of LinFlow
 		loss = align()
@@ -189,6 +189,9 @@ class FlattenFromNormals(nn.Module):
 		# projection vec
 		self.U = nn.Parameter(U_0)
 
+		# boolean determining if this is a global projection or not
+		self.global_proj = G.numel() > 1
+
 	def forward(self):
 		loss = 0
 
@@ -199,8 +202,9 @@ class FlattenFromNormals(nn.Module):
 			loss -= 0.5*(self.U_base[:,self.merge[i]]*self.U[:,[i]]).sum(dim=0).pow(2).sum()
 
 		# 2. compute the curvature loss between normal vectors
-		U_gram_neighbors = (self.U.T @ self.U)[self.G]
-		loss -= 0.5*U_gram_neighbors.pow(2).mean()
+		if self.global_proj:
+			U_gram_neighbors = (self.U.T @ self.U)[self.G]
+			loss -= 0.5*U_gram_neighbors.pow(2).mean()
 
 		return loss
 
