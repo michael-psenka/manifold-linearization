@@ -6,7 +6,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from modules import cc_nn, pca_init, find_patches_community_detection
+from modules import cc_nn, pca_init, flatten_patches, find_patches_community_detection
 # ****************************i*************************************************
 # This is the primary script for the curvature compression algorithm.
 # Input: data matrix X of shape (D,n), where D is the embedding dimension and
@@ -22,37 +22,47 @@ from modules import cc_nn, pca_init, find_patches_community_detection
 def cc(X, k):
 	######### HYPERPARAMTERS ####
 	# used for softmax
-	_gamma = 1
+	_gamma = 2
 	# noise tolerance fo rdata
 	_eps = 1e-2
-	##############################
 	#  how much to widen neighborhoods for neighboring detection
 	_eps_N = 0
+	##############################
 
 	# set up needed variables
-	d, N = X.shape
+	D, N = X.shape
 	cc_network = cc_nn.CCNetwork()
 
 	mu = X.mean(axis=1, keepdim=True)
+	# scaled global norm based on number of samples
+	global_norm = (X - mu).norm(p=2) / N
 	
 	# add centering to network
-	cc_network.add_operation(cc_nn.CCRecenter(mu))
-	X = X - mu
+	cc_network.add_operation(cc_nn.CCNormalize(mu, 1/global_norm))
+	# now we start calling X as Z as we pass it through our constructed networkj
+	Z = X - mu
 	print('Init PCA to reduce nonnecessary dimensions...')
 	# STEP 0: use PCA to project out machine-precision directions
-	X, U_r = pca_init.pca_init(X)
+	Z, U_r = pca_init.pca_init(Z)
 	# add PCA operation to network
-	cc_network.add_module("pca", cc_nn.LinearCol(U_r.T))
+	cc_network.add_operation(cc_nn.LinearCol(U_r.T), "pca")
 	# new ambient dimension, rank of PCA
 	d_current = U_r.shape[1]
 
 	# find neighborhood index sets
 	print('Finding neighborhoods...')
 
-	ind_X, merges, A_N, mu_N, G_N = \
-		find_patches_community_detection.find_neighborhood_structure(X, k, _eps, _eps_N)
+	ind_Z, merges, A_N, mu_N, G_N = \
+		find_patches_community_detection.find_neighborhood_structure(Z, k, _eps, _eps_N)
 
-	# TODO: add init Pi membership layer
+	# test membership layer
+	print('Finding membership...')
+	layer_pi = cc_nn.CCUpdatePi(_gamma, A_N, mu_N)
+	print('Applying membership...')
+	ZPi = layer_pi(Z)
+	cc_network.add_operation(layer_pi, f"pi;d:{d_current}")
+
+	# test flatten from points
 
 	print('Beginning main construction loop.')
 	# MAIN LOOP: looping through ambient dimension d_current until
@@ -60,13 +70,18 @@ def cc(X, k):
 	has_converged = False
 	while not has_converged:
 
-		# INNER LOOP: flatten and merge patches
-		k = Np.shape[1]
+		# STEP 1: find init normal directions from neighborhood points
+		# here we optimize for injectivity with the minimal induced extrinsic curvaturew
+		print('Finding normals...')
+		Z = ZPi[:d_current,:]
+		U = flatten_patches.flatten_from_points(Z, ind_Z, G_N[0])
 
-		# our first flattening is from the points within each neighborhood
-		# we also check here to see if the manifold has been flattened
-		# everywhere -- if so, impossible to compress further
-		U, alpha, has_converged = flatten_patches.flatten_from_points(X_i, E)
+		print('Aligning projectors...')
+		alpha = flatten_patches.align_offsets(ZPi, U)
+
+		print('Flatten from normals...')
+		U2 = flatten_patches.flatten_from_normals(U, merges[0], G_N[1])
+
 		# if test for convergence is true, we don't want to add the above
 		# generated layer
 		if has_converged:
