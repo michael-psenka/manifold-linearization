@@ -134,8 +134,7 @@ def find_patches_and_merge_path(X: torch.Tensor, k: int = -1):
     # ind_X: list of index sets, where each index set is a neighborhoods
     # merges: list of merges from neighborhoods to full set (note return denoted
     # --- merge_abbrv since we shorten it from the community detection output)
-    # --- does not include the first set (all singletons, nothing merged), and does not
-    #     include the last set (one set, everything merged)
+    # --- does not include the first set (all singletons, nothing merged)
     # A_N: list of linear operators representing shape and size of each neighborhood
     # mu_N: list of vectors representing centers of each neighborhood
     # G_N: list of adjacency matrices for neighborhoods and merged neighborhoods
@@ -156,7 +155,7 @@ def find_neighborhood_structure(X: torch.Tensor, k: int = -1, _eps: float = 1e-8
     # find neighborhoods
     ind_X, merge_path = find_patches_and_merge_path(X, k)
     # extract number of neighborhoods
-    p = len(merge_path)
+    p = len(ind_X)
     ############# 1. We first abbreviate the redundant merges as to make the resulting
     # network as shallow as possible
 
@@ -183,6 +182,8 @@ def find_neighborhood_structure(X: torch.Tensor, k: int = -1, _eps: float = 1e-8
         for ind in merge_new:
             curr_merges.append(ind)
 
+    # add final merge (1 set of all neighborhoods) for convention
+    merge_abbrv.append(merge_path[-1])
 
     ############# 2. Find neighborhood structure of each neighborhood
     # convert index sets to pytorch tensors
