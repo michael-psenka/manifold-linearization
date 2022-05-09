@@ -15,6 +15,7 @@ datasets/*/torch-dataset
 # IPython
 profile_default/
 ipython_config.py
+*.pyc
 # Ignore IDE specific files
 .idea/
 .vscode/
