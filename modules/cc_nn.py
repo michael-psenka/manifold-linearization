@@ -18,15 +18,11 @@ from torch import nn
 # N_mu: list of pytorch tensors representing means of neighborhoods
 # if above parameters not specified, no need to update membership.
 class CCLayer(nn.Module):
-	def __init__(self, U, alpha, p, gamma=-1, N_A=-1, N_mu=-1):
+	def __init__(self, U, alpha):
 		super(CCLayer, self).__init__()
 		self.U = U
 		self.alpha = alpha
-		self.D = U.shape[0]
-		self.p = p
-		self.gamma = gamma
-		self.N_A = N_A
-		self.N_mu = N_mu
+		self.D, self.p = U.shape
 
 		
 	def forward(self, ZPi):
@@ -77,18 +73,23 @@ class CCLayer(nn.Module):
 
 # update membership estimation; note we don't need to update at every layer,
 # since application of layer shouldn't change membership much of test points
+
+
+# note that ZPi could either be just Z or ZPi
 class CCUpdatePi(nn.Module):
 	def __init__(self, gamma, N_A, N_mu):
 		super(CCUpdatePi, self).__init__()
 		self.gamma = gamma
 		self.N_A = N_A
 		self.N_mu = N_mu
-		# extract num of neighborhoods
+		# extract dimensions
+		self.D = N_mu[0].shape[0]
 		self.p = len(N_A)
 
 		
-	def forward(self, Z):
+	def forward(self, ZPi):
 		# reshaped Z for broadcasting operations
+		Z = ZPi[:self.D, :]
 		D, N = Z.shape
 
 		N_eval_norms = torch.zeros((N, self.p))
@@ -143,8 +144,20 @@ class LinearCol(nn.Module):
 		super(LinearCol, self).__init__()
 		self.A = nn.Parameter(A)
 		
-	def forward(self, x):
-		return self.A@x
+	def forward(self, X):
+		return self.A@X
+
+# linear layer that projects out a subspace: x --> x - u@u^T@
+class LinearProj(nn.Module):
+	def __init__(self, u, D):
+		super(LinearProj, self).__init__()
+		self.u = nn.Parameter(u)
+		# needed to extract Z from ZPi
+		self.D = D
+		
+	def forward(self, ZPi):
+		Z = ZPi[:self.D, :]
+		return Z - self.u@self.u.T@Z
 
 # translate and rescale data for downstream training
 # akin to layer/batch normalization
