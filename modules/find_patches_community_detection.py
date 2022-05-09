@@ -134,11 +134,16 @@ def find_patches_and_merge_path(X: torch.Tensor, k: int = -1):
     # ind_X: list of index sets, where each index set is a neighborhoods
     # merges: list of merges from neighborhoods to full set (note return denoted
     # --- merge_abbrv since we shorten it from the community detection output)
+    # --- does not include the first set (all singletons, nothing merged), and does not
+    #     include the last set (one set, everything merged)
     # A_N: list of linear operators representing shape and size of each neighborhood
     # mu_N: list of vectors representing centers of each neighborhood
     # G_N: list of adjacency matrices for neighborhoods and merged neighborhoods
 
 def find_neighborhood_structure(X: torch.Tensor, k: int = -1, _eps: float = 1e-8, _eps_N: float = 0):
+    # extract ambient dimension
+    D = X.shape[0]
+    
     # determine if using CPU or GPU
     on_GPU = X.is_cuda
 
@@ -158,7 +163,7 @@ def find_neighborhood_structure(X: torch.Tensor, k: int = -1, _eps: float = 1e-8
     # for disjoint merges, we can do them simultaneously.
 
     # shortened list of merges, starting with unmerged neighborhoods
-    merge_abbrv = merge_path[0]
+    merge_abbrv = []
     # tracks which neighborhoods we've merged
     curr_merges = []
 
@@ -200,6 +205,7 @@ def find_neighborhood_structure(X: torch.Tensor, k: int = -1, _eps: float = 1e-8
     # create neighborhood sets
     for i in range(p):
         X_i_mu = X_N[i].mean(dim=1, keepdim=True)
+        # RHS indexing just to get pytorch to work
         mu_N.append(X_i_mu)
 
         X_c = X_N[i] - X_i_mu
@@ -222,6 +228,7 @@ def find_neighborhood_structure(X: torch.Tensor, k: int = -1, _eps: float = 1e-8
         for j in range(i+1,p):
             # calc dist of all points in j neighborhood to i
             n_mult = 1/(1+_eps_N)
+            # note we want A_N[:,:,i] to be of shape (D,D) and mu_N[:,i] to be of shape (D,1)
             norms_i_j = (n_mult*A_N[i]@(X_N[j] - mu_N[i])).norm(dim=0)
             num_intersect = (norms_i_j <= 1).sum()
             # if any intersect, neighborhoods are connected
@@ -236,7 +243,9 @@ def find_neighborhood_structure(X: torch.Tensor, k: int = -1, _eps: float = 1e-8
                 G_N0[i,j] = 1
 
     # construct adjacency matrices for downstream merges
-    G_N.append(G_N0)
+    # we want to store a boolean tensor for indexing, original adjacency matrix
+    # is efficiently recoverable if needed
+    G_N.append(G_N0 > 0)
     for merge_num in range(0,len(merge_abbrv)):
         p_curr = len(merge_abbrv[merge_num])
         G_curr = torch.zeros((p_curr, p_curr))
@@ -248,8 +257,14 @@ def find_neighborhood_structure(X: torch.Tensor, k: int = -1, _eps: float = 1e-8
                         if G_N0[ind_i,ind_j] == 1 or G_N0[ind_j,ind_i] == 1:
                             G_curr[i,j] = 1
 
-        G_N.append(G_curr)
+        G_N.append(G_curr > 0)
 
+
+    # convert merge_abbrv to pytorch format
+    for merge in merge_abbrv:
+        # each merge[i] is an index set within the selected merge
+        for i in range(len(merge)):
+            merge[i] = torch.tensor(list(merge[i]))
 
     # return all computed neighborhood info
     return ind_X, merge_abbrv, A_N, mu_N, G_N

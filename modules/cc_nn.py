@@ -10,7 +10,7 @@ from torch import nn
 
 # U: vector set of shape (D,k) representing normal directions for affine projector
 # alpha: scalar set of shape (1,k) representing offset for affine projector
-# k: number of neighboorhoods
+# p: number of neighboorhoods
 
 # gamma: scalar multiple for softmax
 # N_A: list of pytorch tensors representing shape of neighborhoods (inverse square
@@ -18,101 +18,101 @@ from torch import nn
 # N_mu: list of pytorch tensors representing means of neighborhoods
 # if above parameters not specified, no need to update membership.
 class CCLayer(nn.Module):
-	def __init__(self, U, alpha, k, gamma=-1, N_A=-1, N_mu=-1):
+	def __init__(self, U, alpha, p, gamma=-1, N_A=-1, N_mu=-1):
 		super(CCLayer, self).__init__()
 		self.U = U
 		self.alpha = alpha
 		self.D = U.shape[0]
-		self.k = k
+		self.p = p
 		self.gamma = gamma
 		self.N_A = N_A
 		self.N_mu = N_mu
 
 		
-	def forward(self, XPi):
-		# XPi: tensor of shape (D+k) x N, a concatenation of the data and
+	def forward(self, ZPi):
+		# ZPi: tensor of shape (D+p) x N, a concatenation of the data and
 		# their neighborhood membership probabilities
 		# we pass both through since we don't need to recompute the membership
 		# at every layer
 
-		# X: R^(D x N)
-		# Pi: R^(k x N)
+		# Z: R^(D x N)
+		# Pi: R^(p x N)
 
-		# returns: tensor of shape (D + k) x N
+		# returns: tensor of shape (D + p) x N
 
-		X = XPi[:self.D, :]
-		Pi = XPi[self.D:, :]
+		Z = ZPi[:self.D, :]
+		Pi = ZPi[self.D:, :]
 
 
 		# if only one neighborhood, simply global projection operator
-		if self.k == 1:
+		if self.p == 1:
 			# note we don't need offset for global linear operator
-			return X - self.U@self.U.T@X
+			return Z - self.U@self.U.T@Z
 
 		# otherwise, we need smooth mixing of local operators
-		N = X.shape[1]
+		N = Z.shape[1]
 
 		# vector offsets for affine projectors
-		b = self.U*self.alpha.reshape((1,self.k))
-		b = b.reshape((self.D,1,self.k))
+		b = self.U*self.alpha.reshape((1,self.p))
+		b = b.reshape((self.D,1,self.p))
 		
-		# reshaped X for broadcasting operations
-		X_reshape = X.reshape((self.D, N, 1))
-		N_mu_reshape = self.N_mu.reshape((self.D, 1, self.k))
-		# evaluate neighborhood membership operators
-		N_eval_reshape = self.N_A.reshape((self.D, self.D, 1, k))*(X.reshape((1, self.D, N, 1)) - N_mu_reshape)
-		# output is of shape (D x N x k)
-		N_eval = N_eval_reshape.sum(dim=1)
+		# reshaped Z for broadcasting operations
+		Z_reshape = Z.reshape((self.D, N, 1))
 		
 		# Compute the affine projection
 
-		# (output is of shape (N, k))
-		uTX = (self.U.reshape((self.D, 1, self.k)) \
-			* X_reshape).sum(dim=0)
-		# (output is of shape (D, N, k))
-		uuTX = self.U.reshape((self.D, 1, self.k)) \
-			* uTX.reshape((1, N, self.k))
+		# (output is of shape (N, p))
+		uTZ = (self.U.reshape((self.D, 1, self.p)) \
+			* Z_reshape).sum(dim=0)
+		# (output is of shape (D, N, p))
+		uuTZ = self.U.reshape((self.D, 1, self.p)) \
+			* uTZ.reshape((1, N, self.p))
 
-		affine_proj = X_reshape - uuTX + b
-
-		# Computes probability of each point in batch being in each neighborhood
-		# (output is of shape (N, k))
-		
-
-		# if we specify gamma, then we want to update Pi
-		if not self.gamma == -1:
-			# output is of shape (k x N)
-			Pi = torch.softmax(self.gamma * (N_eval).pow(2).sum(axis=0), dim=1).T
+		affine_proj = Z_reshape - uuTZ + b
 		
 		# Compute the output
 		# (output is of shape (D, N))
-		X_out = (affine_proj * Pi.reshape((1, N, self.k))).sum(dim=2)
-		return torch.vstack((X_out, Pi))
+		Z_out = (affine_proj * Pi.reshape((1, N, self.p))).sum(dim=2)
+		return torch.vstack((Z_out, Pi))
 
-# first call to neighborhood membership estimation, takes data matrix
-class CCInitPi(nn.Module):
+# update membership estimation; note we don't need to update at every layer,
+# since application of layer shouldn't change membership much of test points
+class CCUpdatePi(nn.Module):
 	def __init__(self, gamma, N_A, N_mu):
-		super(CCInitPi, self).__init__()
+		super(CCUpdatePi, self).__init__()
 		self.gamma = gamma
 		self.N_A = N_A
 		self.N_mu = N_mu
+		# extract num of neighborhoods
+		self.p = len(N_A)
 
 		
-	def forward(self, X):
-		# reshaped X for broadcasting operations
-		X_reshape = X.reshape((self.D, N, 1))
-		N_mu_reshape = self.N_mu.reshape((self.D, 1, self.k))
-		# evaluate neighborhood membership operators
-		N_eval_reshape = self.N_A.reshape((self.D, self.D, 1, k))*(X.reshape((1, self.D, N, 1)) - N_mu_reshape)
-		# output is of shape (D x N x k)
-		N_eval = N_eval_reshape.sum(dim=1)
+	def forward(self, Z):
+		# reshaped Z for broadcasting operations
+		D, N = Z.shape
+
+		N_eval_norms = torch.zeros((N, self.p))
+		for i in range(self.p):
+			N_eval_norms[:, i] = (self.N_A[i] @ (Z - self.N_mu[i])).pow(2).sum(dim=0)
+
+		# vectorized
+		# Z_reshape = Z.reshape((D, N, 1))
+		# N_mu_reshape = self.N_mu.reshape((D, 1, self.p))
+		# # evaluate neighborhood membership operators
+		# N_eval_reshape = self.N_A.reshape((D, D, 1, self.p))*(Z.reshape((1, D, N, 1)) - N_mu_reshape)
+		# # output is of shape (D x N x p)
+		# N_eval = N_eval_reshape.sum(dim=1)
+
+		# output is (N, p)
+		# N_eval_norms = N_eval.pow(2).sum(axis=0)
 		
-		Pi = torch.softmax(self.gamma * (N_eval).pow(2).sum(axis=0), dim=1).T
+		# need transpose to return to (p, N) standard
+		Pi = torch.softmax(-self.gamma * N_eval_norms, dim=1).T
 		
 		# Compute the output
 		# (output is of shape (D + k, N))
 		
-		return torch.vstack((X, Pi))
+		return torch.vstack((Z, Pi))
 
 # we will iteratively build this network through calls to Sequential.add_module:
 # e.g. ccn = CCNetwork(); ccn.network.add_module("layer1", CCLayer(Np, U, alpha, gamma))
@@ -129,8 +129,11 @@ class CCNetwork(nn.Module):
 	def forward(self, X):
 		return self.network(X)
 
-	def add_operation(self, nn_module):
-		self.network.add_module(f'layer {len(self.network)}', nn_module)
+	def add_operation(self, nn_module, name = '_'):
+		# if no name, just indicate which layer it is
+		if name == '_':
+			name = f'layer {len(self.network)}'
+		self.network.add_module(name, nn_module)
 
 
 # linear layer as in PyTorch, but with matmul convention flipped. here:
@@ -143,12 +146,13 @@ class LinearCol(nn.Module):
 	def forward(self, x):
 		return self.A@x
 
-# simple translation, needed when we recenter data
-# akin to layer normalization
-class CCRecenter(nn.Module):
-	def __init__(self, mu):
-		super(CCRecenter, self).__init__()
+# translate and rescale data for downstream training
+# akin to layer/batch normalization
+class CCNormalize(nn.Module):
+	def __init__(self, mu, scale):
+		super(CCNormalize, self).__init__()
 		self.mu = nn.Parameter(mu)
+		self.scale = scale
 		
-	def forward(self, x):
-		return x - self.mu
+	def forward(self, Z):
+		return self.scale*(Z - self.mu)
