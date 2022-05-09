@@ -20,6 +20,7 @@ dataset = datasets.MNIST(root='./torch-dataset', train=True,
                          download=True, transform=transform)
 
 print('Loading data...')
+# ############ MNIST
 # load dataset into pytorch
 data_loader = torch.utils.data.DataLoader(dataset, batch_size=600000)
 data,labels = next(iter(data_loader))
@@ -29,6 +30,9 @@ data = data.cuda()
 Z = data[labels==2]
 Z = Z.reshape((5958,32**2))
 Z = Z.T
+
+# ############ dummy data
+# Z = torch.randn(10,1000)
 
 print('Starting CC!')
 # main training command
