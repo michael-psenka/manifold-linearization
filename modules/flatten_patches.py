@@ -22,9 +22,9 @@ def flatten_from_points(Z, ind_Z, G_N0):
 
 	# construct pytorch optimization object
 	flatten = FlattenFromPoints(Z, ind_Z, G_N0, U_0)
-	opt = optim.SGD(flatten.parameters(), lr=0.1)
+	opt = optim.SGD(flatten.parameters(), lr=0.01)
 
-	for i in range(100):
+	for i in range(1000):
 		flatten.zero_grad()
 		# forward call of LinFlow
 		loss = flatten()
@@ -32,15 +32,15 @@ def flatten_from_points(Z, ind_Z, G_N0):
 		loss.backward()
 
 		# compute riemannian gradient
-		if i % 300 == 0:
-			print(f'loss: {loss}')
-			egrad = flatten.U.grad.detach()
-			base = flatten.U.data.detach()
-			uuTegrad = base * (base*egrad).sum(dim=0, keepdim=True)
-			rgrad = egrad - uuTegrad
-			# normalize based on num data points
-			rgrad_norm = rgrad.pow(2).mean(axis=0).sum().sqrt()
-			print(f'rgrad: {rgrad_norm}')
+		# if i % 300 == 0:
+		# 	print(f'loss: {loss}')
+		# 	egrad = flatten.U.grad.detach()
+		# 	base = flatten.U.data.detach()
+		# 	uuTegrad = base * (base*egrad).sum(dim=0, keepdim=True)
+		# 	rgrad = egrad - uuTegrad
+		# 	# normalize based on num data points
+		# 	rgrad_norm = rgrad.pow(2).mean(axis=0).sum().sqrt()
+		# 	print(f'rgrad: {rgrad_norm}')
 
 		# GD step
 		opt.step()
@@ -61,9 +61,9 @@ def flatten_from_normals(U_base, merge, G):
 
 	# construct pytorch optimization object
 	flatten = FlattenFromNormals(U_base, merge, G, U_0)
-	opt = optim.SGD(flatten.parameters(), lr=0.1)
+	opt = optim.SGD(flatten.parameters(), lr=0.01)
 
-	for i in range(100):
+	for i in range(1000):
 		flatten.zero_grad()
 		# forward call of LinFlow
 		loss = flatten()
@@ -71,15 +71,15 @@ def flatten_from_normals(U_base, merge, G):
 		loss.backward()
 
 		# compute riemannian gradient
-		if i % 300 == 0:
-			print(f'loss: {loss}')
-			egrad = flatten.U.grad.detach()
-			base = flatten.U.data.detach()
-			uuTegrad = base * (base*egrad).sum(dim=0, keepdim=True)
-			rgrad = egrad - uuTegrad
-			# normalize based on num data points
-			rgrad_norm = rgrad.pow(2).mean(axis=0).sum().sqrt()
-			print(f'rgrad: {rgrad_norm}')
+		# if i % 300 == 0:
+		# 	print(f'loss: {loss}')
+		# 	egrad = flatten.U.grad.detach()
+		# 	base = flatten.U.data.detach()
+		# 	uuTegrad = base * (base*egrad).sum(dim=0, keepdim=True)
+		# 	rgrad = egrad - uuTegrad
+		# 	# normalize based on num data points
+		# 	rgrad_norm = rgrad.pow(2).mean(axis=0).sum().sqrt()
+		# 	print(f'rgrad: {rgrad_norm}')
 
 		# GD step
 		opt.step()
@@ -101,23 +101,23 @@ def align_offsets(ZPi, U):
 
 	# construct pytorch optimization object
 	align = AlignOffsets(Z, Pi, U, alpha_0)
-	opt = optim.SGD(align.parameters(), lr=0.1)
+	opt = optim.SGD(align.parameters(), lr=0.01)
 
-	for i in range(100):
+	for i in range(1000):
 		align.zero_grad()
 		# forward call of LinFlow
 		loss = align()
 
 		loss.backward()
 
-		# compute riemannian gradient
-		if i % 300 == 0:
-			print(f'loss: {loss}')
-			egrad = align.alpha.grad.detach()
-			rgrad = egrad
-			# normalize based on num data points
-			rgrad_norm = rgrad.pow(2).mean(axis=0).sum().sqrt()
-			print(f'rgrad: {rgrad_norm}')
+		# # compute riemannian gradient
+		# if i % 300 == 0:
+		# 	print(f'loss: {loss}')
+		# 	egrad = align.alpha.grad.detach()
+		# 	rgrad = egrad
+		# 	# normalize based on num data points
+		# 	rgrad_norm = rgrad.pow(2).mean(axis=0).sum().sqrt()
+		# 	print(f'rgrad: {rgrad_norm}')
 
 		# GD step
 		opt.step()

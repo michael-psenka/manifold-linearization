@@ -19,7 +19,7 @@ from modules import cc_nn, pca_init, flatten_patches, find_patches_community_det
 
 # k is number of neighborhoods for kNN graph to approximate manifold
 
-def cc(X, k):
+def cc(X, k, d_desired):
 	######### HYPERPARAMTERS ####
 	# used for softmax
 	_gamma = 2
@@ -61,11 +61,11 @@ def cc(X, k):
 	print('Beginning main construction loop.')
 	# MAIN LOOP: looping through ambient dimension d_current until
 	# it has been reduced as much as possible
-	has_converged = False
-	while not has_converged:
-		print('---------- GLOBAL STEP ----------')
+	d_tracker = d_current
+	while d_tracker > d_desired:
+		print(f'---------- GLOBAL STEP: d={d_tracker} ----------')
 		# STEP 1: update memberships
-		print('Finding membership...')
+		# print('Finding membership...')
 		layer_pi = cc_nn.CCUpdatePi(_gamma, A_N, mu_N)
 		ZPi = layer_pi(Z)
 		cc_network.add_operation(layer_pi, f"pi;d:{d_current}")
@@ -74,10 +74,10 @@ def cc(X, k):
 		# here we optimize for injectivity with the minimal induced extrinsic curvaturew
 
 		# Note that ZPi[:d_current,:] is Z, and ZPi[d_current:,:] is Pi
-		print('Finding normals...')
+		# print('Finding normals...')
 		U = flatten_patches.flatten_from_points(Z[:d_current,:], ind_Z, G_N[0])
 
-		print('Aligning projectors...')
+		# print('Aligning projectors...')
 		alpha = flatten_patches.align_offsets(ZPi, U)
 
 		cclayer = cc_nn.CCLayer(U, alpha)
@@ -87,7 +87,7 @@ def cc(X, k):
 		# STEP 3: merge and flatten neighborhoods through normal directions
 		U_base = U
 		for i in range(len(merges)):
-			print('Flatten from normals...')
+			# print('Flatten from normals...')
 			U = flatten_patches.flatten_from_normals(U_base, merges[i], G_N[i+1])
 
 			# if this is the last iteration, we know it's just a global projection
@@ -100,17 +100,14 @@ def cc(X, k):
 				for j in range(len(merges[i])):
 					U_base[:,merges[i][j]] = U[:,[j]]
 
-				print('Aligning projectors...')
+				# print('Aligning projectors...')
 				alpha = flatten_patches.align_offsets(ZPi, U_base)
-				print('Creating and applying layer...')
+				# print('Creating and applying layer...')
 				cclayer = cc_nn.CCLayer(U_base, alpha)
 				# note only Z is affected here, we just need Pi in
 				ZPi = cclayer(ZPi)
 				cc_network.add_operation(cclayer, f"lin-normals-{i+1};d:{d_current}")
-
-		# if test for convergence is true, we don't want to add the above
-		# generated layer
-		if has_converged:
-			break
+		d_tracker -= 1
 	
+	print(f'---------- Done!: d={d_tracker} ----------')
 	return cc_network
