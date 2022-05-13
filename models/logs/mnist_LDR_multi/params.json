@@ -1,0 +1,10 @@
+{
+    "log_dir": "logs/mnist_LDR_multi",
+    "num_steps": 4500,
+    "batch_size": 2048,
+    "n_dis": 1,
+    "lr_decay": "linear",
+    "optD": "Adam (\nParameter Group 0\n    amsgrad: False\n    betas: (0.5, 0.999)\n    eps: 1e-08\n    lr: 0.00015\n    weight_decay: 0\n)",
+    "optG": "Adam (\nParameter Group 0\n    amsgrad: False\n    betas: (0.5, 0.999)\n    eps: 1e-08\n    lr: 0.00015\n    weight_decay: 0\n)",
+    "save_steps": 5000
+}
