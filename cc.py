@@ -33,6 +33,11 @@ def cc(X, k, d_desired):
 	D, N = X.shape
 	cc_network = cc_nn.CCNetwork()
 
+	# tracks current global normal directions of representation f(X)
+	# initialized at shape (1), but when we stack will have shape
+	# (d_current, m) when we've made m global flattenings
+	U_global = torch.zeros(1)
+
 	mu = X.mean(axis=1, keepdim=True)
 	# scaled global norm based on number of samples
 	global_norm = (X - mu).norm(p=2) / N
@@ -75,7 +80,7 @@ def cc(X, k, d_desired):
 
 		# Note that ZPi[:d_current,:] is Z, and ZPi[d_current:,:] is Pi
 		# print('Finding normals...')
-		U = flatten_patches.flatten_from_points(Z[:d_current,:], ind_Z, G_N[0])
+		U = flatten_patches.flatten_from_points(Z[:d_current,:], ind_Z, G_N[0], U_global)
 
 		# print('Aligning projectors...')
 		alpha = flatten_patches.align_offsets(ZPi, U)
@@ -88,10 +93,11 @@ def cc(X, k, d_desired):
 		U_base = U
 		for i in range(len(merges)):
 			# print('Flatten from normals...')
-			U = flatten_patches.flatten_from_normals(U_base, merges[i], G_N[i+1])
+			U = flatten_patches.flatten_from_normals(U_base, merges[i], G_N[i+1], U_global)
 
 			# if this is the last iteration, we know it's just a global projection
 			if i == len(merges) - 1:
+				print(f'U shape {U.shape}')
 				cclayer = cc_nn.LinearProj(U, d_current)
 				ZPi = cclayer(ZPi)
 				cc_network.add_operation(cclayer, f"lin-proj-global;d:{d_current}")
@@ -107,7 +113,15 @@ def cc(X, k, d_desired):
 				# note only Z is affected here, we just need Pi in
 				ZPi = cclayer(ZPi)
 				cc_network.add_operation(cclayer, f"lin-normals-{i+1};d:{d_current}")
+
+		# STEP 4: update global normal directions
+		if (U_global.numel() == 1):
+			U_global = U
+		else:
+			U_global = torch.cat((U_global, U), dim=1)
 		d_tracker -= 1
+
+
 	
 	print(f'---------- Done!: d={d_tracker} ----------')
 	return cc_network

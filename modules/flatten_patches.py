@@ -7,8 +7,9 @@ import torch.optim as optim
 # Z: data matrix of shape (D,n)
 # ind_Z: set of index sets corresponding to neighborhoods
 # G_N0: adjacency matrix of neighborhoods
+# U_global: collection of current global normal directions
 
-def flatten_from_points(Z, ind_Z, G_N0):
+def flatten_from_points(Z, ind_Z, G_N0, U_global):
 	# if data on gpu, default tensors to gpu too
 	if Z.is_cuda:
 		torch.set_default_tensor_type('torch.cuda.FloatTensor')
@@ -46,12 +47,16 @@ def flatten_from_points(Z, ind_Z, G_N0):
 		opt.step()
 		# renormalization step
 		with torch.no_grad():
+			# project out global normal directions
+			if U_global.numel() > 1:
+				flatten.U.data = flatten.U.data - U_global@U_global.T@flatten.U.data
+			# normalize columns
 			flatten.U.data = flatten.U.data/flatten.U.data.norm(dim=0, keepdim=True)
 
 	# return flattening
 	return flatten.U.data
 
-def flatten_from_normals(U_base, merge, G):
+def flatten_from_normals(U_base, merge, G, U_global):
 	# get number of neighborhoods
 	p = len(merge)
 	# initialize normal directions
@@ -85,6 +90,10 @@ def flatten_from_normals(U_base, merge, G):
 		opt.step()
 		# renormalization step
 		with torch.no_grad():
+			# project out global normal directions
+			if U_global.numel() > 1:
+				flatten.U.data = flatten.U.data - U_global@U_global.T@flatten.U.data
+			# normalize columns
 			flatten.U.data = flatten.U.data/flatten.U.data.norm(dim=0, keepdim=True)
 
 	# return flattening
