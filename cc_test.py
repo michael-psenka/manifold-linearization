@@ -50,7 +50,7 @@ Z_norm_orig = np.linalg.norm(Z, 'fro')
 Z = Z * n / Z_norm_orig
 print('Starting CC!')
 # main training command
-f = cc.cc(Z, k=4, d_desired=1)
+f = cc.cc(Z, d_desired=1)
 
 Z_new = f(Z).detach().numpy()
 
