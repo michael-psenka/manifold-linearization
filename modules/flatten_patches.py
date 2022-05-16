@@ -7,9 +7,8 @@ import torch.optim as optim
 # Z: data matrix of shape (D,n)
 # ind_Z: set of index sets corresponding to neighborhoods
 # G_N0: adjacency matrix of neighborhoods
-# U_global: collection of current global normal directions
 
-def flatten_from_points(Z, ind_Z, G_N0, U_global):
+def flatten_from_points(Z, ind_Z, G_N0):
 	# if data on gpu, default tensors to gpu too
 	if Z.is_cuda:
 		torch.set_default_tensor_type('torch.cuda.FloatTensor')
@@ -47,16 +46,12 @@ def flatten_from_points(Z, ind_Z, G_N0, U_global):
 		opt.step()
 		# renormalization step
 		with torch.no_grad():
-			# project out global normal directions
-			if U_global.numel() > 1:
-				flatten.U.data = flatten.U.data - U_global@U_global.T@flatten.U.data
-			# normalize columns
 			flatten.U.data = flatten.U.data/flatten.U.data.norm(dim=0, keepdim=True)
 
 	# return flattening
 	return flatten.U.data
 
-def flatten_from_normals(U_base, merge, G, U_global):
+def flatten_from_normals(U_base, merge, G):
 	# get number of neighborhoods
 	p = len(merge)
 	# initialize normal directions
@@ -90,10 +85,6 @@ def flatten_from_normals(U_base, merge, G, U_global):
 		opt.step()
 		# renormalization step
 		with torch.no_grad():
-			# project out global normal directions
-			if U_global.numel() > 1:
-				flatten.U.data = flatten.U.data - U_global@U_global.T@flatten.U.data
-			# normalize columns
 			flatten.U.data = flatten.U.data/flatten.U.data.norm(dim=0, keepdim=True)
 
 	# return flattening
@@ -165,15 +156,8 @@ def align_offsets(ZPi, U):
 		# GD step
 		opt.step()
 
-		if i % 100 == 0:
-			print(f'alpha: {align.alpha.data}')
-			print(f'var loss: {loss}')
-
 	# return alignment
-	alpha_full = torch.zeros(p)
-	alpha_full[0] = alpha_0
-	alpha_full[1:] = align.alpha.data
-	return alpha_full
+	return align.alpha.data
 # pytorch modules for optimizationm
 
 # PyTorch model to optimize our custom loss
@@ -299,7 +283,7 @@ class AlignFirstOffset(nn.Module):
 # alpha of shape (p)
 class AlignOffsets(nn.Module):
 
-	def __init__(self, Z, Pi, U, alpha_init, alpha_0):
+	def __init__(self, Z, Pi, U, alpha_0):
 		super(AlignOffsets, self).__init__();
 		# full data. standardize shape to (D, N, p)
 		# needed for downstream broadcasting
@@ -310,9 +294,7 @@ class AlignOffsets(nn.Module):
 		self.Pi = Pi.T.reshape((1, self.N, self.p))
 		self.U = U.reshape((self.D, 1, self.p))
 
-		self.alpha = nn.Parameter(alpha_init.reshape((1,1,self.p-1)))
-		# init offset for first neighborhood
-		self.alpha_0 = alpha_0.reshape((1,1,1))
+		self.alpha = nn.Parameter(alpha_0.reshape((1,1,self.p)))
 
 		# get evaluation with proposed offset
 		# output of shape (1, N, p)
