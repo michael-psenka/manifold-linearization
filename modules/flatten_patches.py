@@ -106,11 +106,42 @@ def align_offsets(ZPi, U):
 	Z = ZPi[:D,:]
 	Pi = ZPi[D:,:]
 	# initialize normal directions
-	alpha_0 = torch.randn(p)
+	alpha_init = torch.randn(p)
+
+	########## 1 : compute offset for first neighborhood alpha_0
 
 	# construct pytorch optimization object
-	align = AlignOffsets(Z, Pi, U, alpha_0)
-	opt = optim.SGD(align.parameters(), lr=0.01)
+	align_0 = AlignFirstOffset(Z, Pi[[0],:], U[:,[0]], alpha_init[0])
+	opt_0 = optim.SGD(align_0.parameters(), lr=0.1)
+
+	for i in range(1000):
+		align_0.zero_grad()
+		# forward call of LinFlow
+		loss_0 = align_0()
+
+		loss_0.backward()
+
+		# # compute riemannian gradient
+		# if i % 300 == 0:
+		# 	print(f'loss: {loss}')
+		# 	egrad = align.alpha.grad.detach()
+		# 	rgrad = egrad
+		# 	# normalize based on num data points
+		# 	rgrad_norm = rgrad.pow(2).mean(axis=0).sum().sqrt()
+		# 	print(f'rgrad: {rgrad_norm}')
+
+		# GD step
+		opt_0.step()
+
+		if i % 100 == 0:
+			print(f'alpha_0: {align_0.alpha_0.data}')
+
+	alpha_0 = align_0.alpha_0.data.detach()
+	#### 2: once first one fixed, align the rest
+
+	# construct pytorch optimization object
+	align = AlignOffsets(Z, Pi, U, alpha_init[1:], alpha_0)
+	opt = optim.SGD(align.parameters(), lr=0.1)
 
 	for i in range(1000):
 		align.zero_grad()
@@ -131,8 +162,15 @@ def align_offsets(ZPi, U):
 		# GD step
 		opt.step()
 
+		if i % 100 == 0:
+			print(f'alpha: {align.alpha.data}')
+			print(f'var loss: {loss}')
+
 	# return alignment
-	return align.alpha.data
+	alpha_full = torch.zeros(p)
+	alpha_full[0] = alpha_0
+	alpha_full[1:] = align.alpha.data
+	return alpha_full
 # pytorch modules for optimizationm
 
 # PyTorch model to optimize our custom loss
@@ -217,11 +255,45 @@ class FlattenFromNormals(nn.Module):
 
 		return loss
 
+# alpha of shape (1)
+class AlignFirstOffset(nn.Module):
+
+	def __init__(self, Z, Pi_0, U_0, alpha_0):
+		super(AlignFirstOffset, self).__init__();
+		# full data. standardize shape to (D, N, p)
+		# needed for downstream broadcasting
+		self.D, self.N = Z.shape
+
+		self.Z = Z
+		# shape (1,N)
+		self.Pi_0 = Pi_0
+		# shape (D,1)
+		self.U_0 = U_0
+		# shape (1)
+		self.alpha_0 = nn.Parameter(alpha_0)
+
+		# get evaluation with proposed offset
+
+		uuTZ = U_0 @ (U_0.T @ Z)
+
+		self.Z_proj = self.Z - uuTZ
+
+	def forward(self):
+		
+		Z_aff_proj = self.Z_proj + self.U_0*self.alpha_0
+
+		# alpha loss function will be dependent on each other, trying to find
+		# alphas that agree at intersections of the neighborhoods. We choose to
+		# fix the first alpha[0] to also minimize the change to the original data
+		# in the respective neighborhood
+		loss = ((self.Z - Z_aff_proj).pow(2)*self.Pi_0).sum()
+		
+		return loss
 
 # alpha of shape (p)
 class AlignOffsets(nn.Module):
 
-	def __init__(self, Z, Pi, U, alpha_0):
+	def __init__(self, Z, Pi, U, alpha_init, alpha_0):
 		super(AlignOffsets, self).__init__();
 		# full data. standardize shape to (D, N, p)
 		# needed for downstream broadcasting
@@ -232,7 +304,9 @@ class AlignOffsets(nn.Module):
 		self.Pi = Pi.T.reshape((1, self.N, self.p))
 		self.U = U.reshape((self.D, 1, self.p))
 
-		self.alpha = nn.Parameter(alpha_0.reshape((1,1,self.p)))
+		self.alpha = nn.Parameter(alpha_init.reshape((1,1,self.p-1)))
+		# init offset for first neighborhood
+		self.alpha_0 = alpha_0.reshape((1,1,1))
 
 		# get evaluation with proposed offset
 		# output of shape (1, N, p)
@@ -244,13 +318,8 @@ class AlignOffsets(nn.Module):
 
 	def forward(self):
 		
-		Z_aff_proj = self.Z_proj + self.U*self.alpha
-
-		# alpha loss function will be dependent on each other, trying to find
-		# alphas that agree at intersections of the neighborhoods. We choose to
-		# fix the first alpha[0] to also minimize the change to the original data
-		# in the respective neighborhood
-		loss = ((self.Z[:,:,0] - Z_aff_proj[:,:,0]).pow(2)*self.Pi[:,:,0]).mean(dim=1).sum()
+		Z_aff_proj = self.Z_proj + \
+			torch.cat((self.U[:,:,[0]]*self.alpha_0,self.U[:,:,1:]*self.alpha), dim=2)
 
 		# once we choose global position of 1st, we can fix as global frame
 		# and only optimize the rest for the "variance" loss
@@ -260,8 +329,7 @@ class AlignOffsets(nn.Module):
 
 		# output of shape (D, N, 1)
 		E_Zproj = (Z_aff_proj*self.Pi).sum(dim=2, keepdim=True)
-		Var_Z = ((Z_aff_proj - E_Zproj).pow(2)*self.Pi).mean(dim=2).mean(dim=1).sum()
-
-		loss += 0.5*Var_Z
+		Var_Z = (1/self.p)*((Z_aff_proj - E_Zproj).pow(2)*self.Pi).sum()
+		loss = 0.5*Var_Z
 		
 		return loss
