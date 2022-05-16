@@ -111,13 +111,18 @@ def align_offsets(ZPi, U):
 	########## 1 : compute offset for first neighborhood alpha_0
 
 	# construct pytorch optimization object
+	print(f'Pi shape: {Pi[[0],:].shape}')
 	align_0 = AlignFirstOffset(Z, Pi[[0],:], U[:,[0]], alpha_init[0])
-	opt_0 = optim.SGD(align_0.parameters(), lr=0.1)
+	opt_0 = optim.Adam(align_0.parameters(), lr=1)
 
 	for i in range(1000):
 		align_0.zero_grad()
 		# forward call of LinFlow
 		loss_0 = align_0()
+
+		if i % 100 == 0:
+			print(f'alpha_0: {align_0.alpha_0.data}')
+			print(f'init align loss: {loss_0}')
 
 		loss_0.backward()
 
@@ -133,15 +138,13 @@ def align_offsets(ZPi, U):
 		# GD step
 		opt_0.step()
 
-		if i % 100 == 0:
-			print(f'alpha_0: {align_0.alpha_0.data}')
 
 	alpha_0 = align_0.alpha_0.data.detach()
 	#### 2: once first one fixed, align the rest
 
 	# construct pytorch optimization object
 	align = AlignOffsets(Z, Pi, U, alpha_init[1:], alpha_0)
-	opt = optim.SGD(align.parameters(), lr=0.1)
+	opt = optim.Adam(align.parameters(), lr=1)
 
 	for i in range(1000):
 		align.zero_grad()
@@ -267,6 +270,8 @@ class AlignFirstOffset(nn.Module):
 		self.Z = Z
 		# shape (1,N)
 		self.Pi_0 = Pi_0
+		# used to scale loss function with size of neighborhood
+		self.Pi_0_sum_2 = Pi_0.sum().pow(2)
 		# shape (D,1)
 		self.U_0 = U_0
 		# shape (1)
@@ -286,7 +291,8 @@ class AlignFirstOffset(nn.Module):
 		# alphas that agree at intersections of the neighborhoods. We choose to
 		# fix the first alpha[0] to also minimize the change to the original data
 		# in the respective neighborhood
-		loss = ((self.Z - Z_aff_proj).pow(2)*self.Pi_0).sum()
+
+		loss = (1/self.Pi_0_sum_2)*((self.Z - Z_aff_proj).pow(2)*self.Pi_0).sum()
 		
 		return loss
 
@@ -320,7 +326,6 @@ class AlignOffsets(nn.Module):
 		
 		Z_aff_proj = self.Z_proj + \
 			torch.cat((self.U[:,:,[0]]*self.alpha_0,self.U[:,:,1:]*self.alpha), dim=2)
-
 		# once we choose global position of 1st, we can fix as global frame
 		# and only optimize the rest for the "variance" loss
 		
@@ -329,7 +334,7 @@ class AlignOffsets(nn.Module):
 
 		# output of shape (D, N, 1)
 		E_Zproj = (Z_aff_proj*self.Pi).sum(dim=2, keepdim=True)
-		Var_Z = (1/self.p)*((Z_aff_proj - E_Zproj).pow(2)*self.Pi).sum()
+		Var_Z = (1/self.p)*((Z_aff_proj - E_Zproj).pow(2)*self.Pi).mean(dim=1).sum()
 		loss = 0.5*Var_Z
 		
 		return loss
