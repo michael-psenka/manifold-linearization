@@ -75,15 +75,18 @@ def cc(X, d_desired, k=-1):
 	# it has been reduced as much as possible
 	d_tracker = d_current
 
-	plt.plot(Z[0,:], Z[1,:], '.')
-	plt.title("init")
-	plt.show()
+	for i in range(len(ind_Z)):
+		plt.plot(Z[0,:], Z[1,:], '.')
+		plt.plot(Z[0,ind_Z[i]], Z[1,ind_Z[i]], '.',c='r')
+		plt.title(f"ind set {i+1}")
+		plt.show()
 	while d_tracker > d_desired:
 		print(f'---------- GLOBAL STEP: d={d_tracker} ----------')
 		# STEP 1: update memberships
 		# print('Finding membership...')
 		layer_pi = cc_nn.CCUpdatePi(_gamma, A_N, mu_N)
 		ZPi = layer_pi(Z)
+
 		cc_network.add_operation(layer_pi, f"pi;d:{d_current}")
 
 		# STEP 2: find init normal directions from neighborhood points
@@ -98,12 +101,17 @@ def cc(X, d_desired, k=-1):
 
 		cclayer = cc_nn.CCLayer(U, alpha)
 		ZPi = cclayer(ZPi)
+
 		cc_network.add_operation(cclayer, f"lin-base;d:{d_current}")
-		
+
 		Z = ZPi[:d_current,:].detach()
-		plt.plot(Z[0,:], Z[1,:], '.')
-		plt.title(f"lin-base;d:{d_current}")
-		plt.show()
+		for i in range(len(ind_Z)):
+			plt.plot(Z[0,:], Z[1,:], '.')
+			plt.plot(Z[0,ind_Z[i]], Z[1,ind_Z[i]], '.',c='r')
+			u_show = U[:,i].detach().numpy()*20
+			plt.quiver(0, 0, u_show[0], u_show[1],scale_units='xy', angles='xy',scale=1)
+			plt.title(f"ind set {i+1}")
+			plt.show()
 
 		# STEP 3: merge and flatten neighborhoods through normal directions
 		U_base = U
