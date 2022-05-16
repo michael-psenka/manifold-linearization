@@ -65,7 +65,6 @@ class CCLayer(nn.Module):
 			* uTZ.reshape((1, N, self.p))
 
 		affine_proj = Z_reshape - uuTZ + b
-		
 		# Compute the output
 		# (output is of shape (D, N))
 		Z_out = (affine_proj * Pi.reshape((1, N, self.p))).sum(dim=2)
@@ -112,6 +111,7 @@ class CCUpdatePi(nn.Module):
 
 		# machine precision thresholding
 		Pi[Pi < 1e-8] = 0
+		Pi = Pi / Pi.sum(dim=0, keepdim=True)
 		
 		# Compute the output
 		# (output is of shape (D + k, N))
