@@ -24,7 +24,7 @@ from modules import cc_nn, pca_init, flatten_patches, find_patches_community_det
 def cc(X, d_desired, k=-1):
 	######### HYPERPARAMTERS ####
 	# used for softmax
-	_gamma = 0.1
+	_gamma = 1
 	# noise tolerance fo rdata
 	_eps = 1e-2
 	#  how much to widen neighborhoods for neighboring detection
@@ -75,11 +75,11 @@ def cc(X, d_desired, k=-1):
 	# it has been reduced as much as possible
 	d_tracker = d_current
 
-	for i in range(len(ind_Z)):
-		plt.plot(Z[0,:], Z[1,:], '.')
-		plt.plot(Z[0,ind_Z[i]], Z[1,ind_Z[i]], '.',c='r')
-		plt.title(f"ind set {i+1}")
-		plt.show()
+	# for i in range(len(ind_Z)):
+	# 	plt.plot(Z[0,:], Z[1,:], '.')
+	# 	plt.plot(Z[0,ind_Z[i]], Z[1,ind_Z[i]], '.',c='r')
+	# 	plt.title(f"ind set {i+1}")
+	# 	plt.show()
 	while d_tracker > d_desired:
 		print(f'---------- GLOBAL STEP: d={d_tracker} ----------')
 		# STEP 1: update memberships
