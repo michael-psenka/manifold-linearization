@@ -109,6 +109,9 @@ class CCUpdatePi(nn.Module):
 		
 		# need transpose to return to (p, N) standard
 		Pi = torch.softmax(-self.gamma * N_eval_norms, dim=1).T
+
+		# machine precision thresholding
+		Pi[Pi < 1e-8] = 0
 		
 		# Compute the output
 		# (output is of shape (D + k, N))
