@@ -7,6 +7,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from modules import cc_nn, pca_init, flatten_patches, find_patches_community_detection
+
+import matplotlib.pyplot as plt
 # ****************************i*************************************************
 # This is the primary script for the curvature compression algorithm.
 # Input: data matrix X of shape (D,n), where D is the embedding dimension and

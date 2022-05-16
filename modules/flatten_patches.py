@@ -157,7 +157,10 @@ def align_offsets(ZPi, U):
 		opt.step()
 
 	# return alignment
-	return align.alpha.data
+	alpha_full = torch.zeros(p)
+	alpha_full[0] = alpha_0
+	alpha_full[1:] = align.alpha.data
+	return alpha_full
 # pytorch modules for optimizationm
 
 # PyTorch model to optimize our custom loss
@@ -283,7 +286,7 @@ class AlignFirstOffset(nn.Module):
 # alpha of shape (p)
 class AlignOffsets(nn.Module):
 
-	def __init__(self, Z, Pi, U, alpha_0):
+	def __init__(self, Z, Pi, U, alpha_init, alpha_0):
 		super(AlignOffsets, self).__init__();
 		# full data. standardize shape to (D, N, p)
 		# needed for downstream broadcasting
@@ -294,7 +297,9 @@ class AlignOffsets(nn.Module):
 		self.Pi = Pi.T.reshape((1, self.N, self.p))
 		self.U = U.reshape((self.D, 1, self.p))
 
-		self.alpha = nn.Parameter(alpha_0.reshape((1,1,self.p)))
+		self.alpha = nn.Parameter(alpha_init.reshape((1,1,self.p-1)))
+		# init offset for first neighborhood
+		self.alpha_0 = alpha_0.reshape((1,1,1))
 
 		# get evaluation with proposed offset
 		# output of shape (1, N, p)
