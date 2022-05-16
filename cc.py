@@ -6,6 +6,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+import matplotlib.pyplot as plt
+
 from modules import cc_nn, pca_init, flatten_patches, find_patches_community_detection
 # ****************************i*************************************************
 # This is the primary script for the curvature compression algorithm.
@@ -19,10 +21,10 @@ from modules import cc_nn, pca_init, flatten_patches, find_patches_community_det
 
 # k is number of neighborhoods for kNN graph to approximate manifold
 
-def cc(X, k, d_desired):
+def cc(X, d_desired, k=-1):
 	######### HYPERPARAMTERS ####
 	# used for softmax
-	_gamma = 2
+	_gamma = 0.1
 	# noise tolerance fo rdata
 	_eps = 1e-2
 	#  how much to widen neighborhoods for neighboring detection
@@ -32,6 +34,9 @@ def cc(X, k, d_desired):
 	# set up needed variables
 	D, N = X.shape
 	cc_network = cc_nn.CCNetwork()
+	# default k if not specified
+	if k == -1:
+		k = min(int(N ** 0.5) + 1, N)
 
 	# tracks current global normal directions of representation f(X)
 	# initialized at shape (1), but when we stack will have shape
@@ -60,6 +65,8 @@ def cc(X, k, d_desired):
 	ind_Z, merges, A_N, mu_N, G_N = \
 		find_patches_community_detection.find_neighborhood_structure(Z, k, _eps, _eps_N)
 
+	print(merges)
+
 	p = len(ind_Z)
 	# test flatten from points
 
@@ -67,6 +74,10 @@ def cc(X, k, d_desired):
 	# MAIN LOOP: looping through ambient dimension d_current until
 	# it has been reduced as much as possible
 	d_tracker = d_current
+
+	plt.plot(Z[0,:], Z[1,:], '.')
+	plt.title("init")
+	plt.show()
 	while d_tracker > d_desired:
 		print(f'---------- GLOBAL STEP: d={d_tracker} ----------')
 		# STEP 1: update memberships
@@ -88,6 +99,11 @@ def cc(X, k, d_desired):
 		cclayer = cc_nn.CCLayer(U, alpha)
 		ZPi = cclayer(ZPi)
 		cc_network.add_operation(cclayer, f"lin-base;d:{d_current}")
+		
+		Z = ZPi[:d_current,:].detach()
+		plt.plot(Z[0,:], Z[1,:], '.')
+		plt.title(f"lin-base;d:{d_current}")
+		plt.show()
 
 		# STEP 3: merge and flatten neighborhoods through normal directions
 		U_base = U
@@ -97,10 +113,14 @@ def cc(X, k, d_desired):
 
 			# if this is the last iteration, we know it's just a global projection
 			if i == len(merges) - 1:
-				print(f'U shape {U.shape}')
 				cclayer = cc_nn.LinearProj(U, d_current)
 				ZPi = cclayer(ZPi)
 				cc_network.add_operation(cclayer, f"lin-proj-global;d:{d_current}")
+
+				Z = ZPi[:d_current,:].detach()
+				plt.plot(Z[0,:], Z[1,:], '.')
+				plt.title(f"lin-proj-global;d:{d_current}")
+				plt.show()
 			else:
 				# update U_base
 				for j in range(len(merges[i])):
@@ -113,6 +133,11 @@ def cc(X, k, d_desired):
 				# note only Z is affected here, we just need Pi in
 				ZPi = cclayer(ZPi)
 				cc_network.add_operation(cclayer, f"lin-normals-{i+1};d:{d_current}")
+
+				Z = ZPi[:d_current,:].detach()
+				plt.plot(Z[0,:], Z[1,:], '.')
+				plt.title(f"lin-normals-{i+1};d:{d_current}")
+				plt.show()
 
 		# STEP 4: update global normal directions
 		if (U_global.numel() == 1):
