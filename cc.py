@@ -6,9 +6,9 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from modules import cc_nn, pca_init, flatten_patches, find_patches_community_detection
-
 import matplotlib.pyplot as plt
+
+from modules import cc_nn, pca_init, flatten_patches, find_patches_community_detection
 # ****************************i*************************************************
 # This is the primary script for the curvature compression algorithm.
 # Input: data matrix X of shape (D,n), where D is the embedding dimension and
@@ -21,10 +21,10 @@ import matplotlib.pyplot as plt
 
 # k is number of neighborhoods for kNN graph to approximate manifold
 
-def cc(X, k, d_desired):
+def cc(X, d_desired, k=-1):
 	######### HYPERPARAMTERS ####
 	# used for softmax
-	_gamma = 2
+	_gamma = 0.1
 	# noise tolerance fo rdata
 	_eps = 1e-2
 	#  how much to widen neighborhoods for neighboring detection
@@ -34,6 +34,14 @@ def cc(X, k, d_desired):
 	# set up needed variables
 	D, N = X.shape
 	cc_network = cc_nn.CCNetwork()
+	# default k if not specified
+	if k == -1:
+		k = min(int(N ** 0.5) + 1, N)
+
+	# tracks current global normal directions of representation f(X)
+	# initialized at shape (1), but when we stack will have shape
+	# (d_current, m) when we've made m global flattenings
+	U_global = torch.zeros(1)
 
 	mu = X.mean(axis=1, keepdim=True)
 	# scaled global norm based on number of samples
@@ -56,6 +64,8 @@ def cc(X, k, d_desired):
 
 	ind_Z, merges, A_N, mu_N, G_N = \
 		find_patches_community_detection.find_neighborhood_structure(Z, k, _eps, _eps_N)
+
+	print(merges)
 
 	p = len(ind_Z)
 	# test flatten from points
@@ -84,7 +94,7 @@ def cc(X, k, d_desired):
 
 		# Note that ZPi[:d_current,:] is Z, and ZPi[d_current:,:] is Pi
 		# print('Finding normals...')
-		U = flatten_patches.flatten_from_points(Z[:d_current,:], ind_Z, G_N[0])
+		U = flatten_patches.flatten_from_points(Z[:d_current,:], ind_Z, G_N[0], U_global)
 
 		# print('Aligning projectors...')
 		alpha = flatten_patches.align_offsets(ZPi, U)
@@ -107,13 +117,18 @@ def cc(X, k, d_desired):
 		U_base = U
 		for i in range(len(merges)):
 			# print('Flatten from normals...')
-			U = flatten_patches.flatten_from_normals(U_base, merges[i], G_N[i+1])
+			U = flatten_patches.flatten_from_normals(U_base, merges[i], G_N[i+1], U_global)
 
 			# if this is the last iteration, we know it's just a global projection
 			if i == len(merges) - 1:
 				cclayer = cc_nn.LinearProj(U, d_current)
 				ZPi = cclayer(ZPi)
 				cc_network.add_operation(cclayer, f"lin-proj-global;d:{d_current}")
+
+				Z = ZPi[:d_current,:].detach()
+				plt.plot(Z[0,:], Z[1,:], '.')
+				plt.title(f"lin-proj-global;d:{d_current}")
+				plt.show()
 			else:
 				# update U_base
 				for j in range(len(merges[i])):
@@ -126,7 +141,20 @@ def cc(X, k, d_desired):
 				# note only Z is affected here, we just need Pi in
 				ZPi = cclayer(ZPi)
 				cc_network.add_operation(cclayer, f"lin-normals-{i+1};d:{d_current}")
+
+				Z = ZPi[:d_current,:].detach()
+				plt.plot(Z[0,:], Z[1,:], '.')
+				plt.title(f"lin-normals-{i+1};d:{d_current}")
+				plt.show()
+
+		# STEP 4: update global normal directions
+		if (U_global.numel() == 1):
+			U_global = U
+		else:
+			U_global = torch.cat((U_global, U), dim=1)
 		d_tracker -= 1
+
+
 	
 	print(f'---------- Done!: d={d_tracker} ----------')
 	return cc_network

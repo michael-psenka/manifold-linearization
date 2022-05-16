@@ -2,7 +2,7 @@
 torch-dataset/
 # directories to ignore
 linflow_archive/plots
-datasets/*/torch-dataset
+datasets/*/torch-dataset/*
 # Jupyter notebooks ignores
 .ipynb_checkpoints
 */.ipynb_checkpoints/*

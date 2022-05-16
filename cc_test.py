@@ -58,5 +58,3 @@ plt.plot(Z[0,:], Z[1,:], '.')
 plt.show()
 plt.plot(Z_new[0,:], Z_new[1,:], '.', c='r')
 plt.show()
-
-
