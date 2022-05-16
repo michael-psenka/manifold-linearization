@@ -214,7 +214,11 @@ def find_neighborhood_structure(X: torch.Tensor, k: int = -1, _eps: float = 1e-8
         # account for potential noise in future
         S += _eps
         Sinv = torch.diag(1/S)
-        A_N.append(Sinv@U.T)
+        # scale based on _eps_N
+        A_N.append((1/(1+_eps_N))*Sinv@U.T)
+
+        # after expanding neighborhoods, recalculate index sets
+        ind_X[i] = (A_N[i]@(X - mu_N[i])).norm(dim=0) <= 1
 
     ############# 3. Find adjacency structure for neighborhoods
     # neighboring graph
@@ -227,20 +231,24 @@ def find_neighborhood_structure(X: torch.Tensor, k: int = -1, _eps: float = 1e-8
 
     for i in range(p):
         for j in range(i+1,p):
-            # calc dist of all points in j neighborhood to i
-            n_mult = 1/(1+_eps_N)
-            # note we want A_N[:,:,i] to be of shape (D,D) and mu_N[:,i] to be of shape (D,1)
-            norms_i_j = (n_mult*A_N[i]@(X_N[j] - mu_N[i])).norm(dim=0)
-            num_intersect = (norms_i_j <= 1).sum()
-            # if any intersect, neighborhoods are connected
-            if num_intersect > 0:
-                G_N0[i,j] = 1
+            # # calc dist of all points in j neighborhood to i
+            # n_mult = 1/(1+_eps_N)
+            # # note we want A_N[:,:,i] to be of shape (D,D) and mu_N[:,i] to be of shape (D,1)
+            # norms_i_j = (n_mult*A_N[i]@(X_N[j] - mu_N[i])).norm(dim=0)
+            # num_intersect = (norms_i_j <= 1).sum()
+            # # if any intersect, neighborhoods are connected
+            # if num_intersect > 0:
+            #     G_N0[i,j] = 1
 
-            # do same flipped
-            norms_j_i = (n_mult*A_N[j]@(X_N[i] - mu_N[j])).norm(dim=0)
-            num_intersect = (norms_j_i <= 1).sum()
-            # if any intersect, neighborhoods are connected
-            if num_intersect > 0:
+            # # do same flipped
+            # norms_j_i = (n_mult*A_N[j]@(X_N[i] - mu_N[j])).norm(dim=0)
+            # num_intersect = (norms_j_i <= 1).sum()
+            # # if any intersect, neighborhoods are connected
+            # if num_intersect > 0:
+            #     G_N0[i,j] = 1
+
+            # NEW: already expanded neighborhoods, just calc intersection
+            if (ind_X[i]*ind_X[j]).sum() > 0:
                 G_N0[i,j] = 1
 
     # construct adjacency matrices for downstream merges
