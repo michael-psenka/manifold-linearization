@@ -1,6 +1,8 @@
 import torch
 from torch import nn
 
+import matplotlib.pyplot as plt
+
 # Python class that represents a layer of a neural network when merging
 # multiple neighborhoods
 # parameters:
@@ -62,10 +64,19 @@ class CCLayer(nn.Module):
 		uuTZ = self.U.reshape((self.D, 1, self.p)) \
 			* uTZ.reshape((1, N, self.p))
 
-		affine_proj = Z_reshape - uuTZ + b
+		affine_proj = (Z_reshape - uuTZ) + b
+
+		for i in range(self.p):
+			plt.plot(Z[0,:], Z[1,:], '.')
+			plt.plot(affine_proj[0,:,i], affine_proj[1,:,i], '.',c='r')
+			u_show = self.U[:,i].detach().numpy()*20
+			plt.quiver(0, 0, u_show[0], u_show[1],scale_units='xy', angles='xy',scale=1)
+			plt.title(f"affine proj {i+1}")
+			plt.show()
 		# Compute the output
 		# (output is of shape (D, N))
-		Z_out = (affine_proj * Pi.reshape((1, N, self.p))).sum(dim=2)
+		Z_out = (affine_proj * (Pi.T).reshape((1, N, self.p))).sum(dim=2)
+
 		return torch.vstack((Z_out, Pi))
 
 # update membership estimation; note we don't need to update at every layer,

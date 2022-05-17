@@ -23,7 +23,7 @@ def flatten_from_points(Z, ind_Z, G_N0, U_global):
 
 	# construct pytorch optimization object
 	flatten = FlattenFromPoints(Z, ind_Z, G_N0, U_0)
-	opt = optim.SGD(flatten.parameters(), lr=0.01)
+	opt = optim.SGD(flatten.parameters(), lr=0.1)
 
 	for i in range(1000):
 		flatten.zero_grad()
@@ -43,6 +43,9 @@ def flatten_from_points(Z, ind_Z, G_N0, U_global):
 		# 	rgrad_norm = rgrad.pow(2).mean(axis=0).sum().sqrt()
 		# 	print(f'rgrad: {rgrad_norm}')
 
+		if i % 100 == 0:
+			print(f'loss: {loss}')
+
 		# GD step
 		opt.step()
 		# renormalization step
@@ -52,7 +55,7 @@ def flatten_from_points(Z, ind_Z, G_N0, U_global):
 				flatten.U.data = flatten.U.data - U_global@U_global.T@flatten.U.data
 			# normalize columns
 			flatten.U.data = flatten.U.data/flatten.U.data.norm(dim=0, keepdim=True)
-
+	print(f'U gram: {flatten.U.data.T @ flatten.U.data}')
 	# return flattening
 	return flatten.U.data
 
@@ -85,6 +88,9 @@ def flatten_from_normals(U_base, merge, G, U_global):
 		# 	# normalize based on num data points
 		# 	rgrad_norm = rgrad.pow(2).mean(axis=0).sum().sqrt()
 		# 	print(f'rgrad: {rgrad_norm}')
+
+		if i % 100 == 0:
+			print(f'loss: {loss}')
 
 		# GD step
 		opt.step()
@@ -218,10 +224,10 @@ class FlattenFromPoints(nn.Module):
 			corr_dZi_u = (self.Z_[i].T @ U_stacked - U_stacked.T @ self.Z_[i])*self.edm_inv_[i]
 			# add to loss
 			loss += 0.25*corr_dZi_u.pow(4).mean()
-
 		# 2. compute the curvature loss between normal vectors
 		U_gram_neighbors = (self.U.T @ self.U)[self.G_N0]
-		loss -= 0.5*U_gram_neighbors.pow(2).mean()
+		# note U represents a subspace, so U is equivalent to -U. 
+		loss += 0.25*(U_gram_neighbors.pow(2) - 1).pow(2).mean()
 
 		return loss
 
@@ -249,12 +255,17 @@ class FlattenFromNormals(nn.Module):
 		# 	note here we just want our normals U to be aligned with what we've chosen at the base
 		for i in range(self.p):
 			# sum of squares of inner products
-			loss -= 0.5*(self.U_base[:,self.merge[i]]*self.U[:,[i]]).sum(dim=0).pow(2).sum()
+			# loss -= 0.5*(self.U_base[:,self.merge[i]]*self.U[:,[i]]).sum(dim=0).pow(2).sum()
+			# abs val of inner products with normals in merged neighborhood
+			U_inner = (self.U_base[:,self.merge[i]]*self.U[:,[i]]).sum(dim=0).abs()
+			# want them as close to 1 as possible.
+			loss += 0.25*(U_inner.pow(2) - 1).pow(2).mean()
 
 		# 2. compute the curvature loss between normal vectors
 		if self.global_proj:
 			U_gram_neighbors = (self.U.T @ self.U)[self.G]
-			loss -= 0.5*U_gram_neighbors.pow(2).mean()
+			# loss -= 0.5*U_gram_neighbors.pow(2).mean()
+			loss += 0.25*(U_gram_neighbors.pow(2) - 1).pow(2).mean()
 
 		return loss
 
@@ -307,7 +318,7 @@ class AlignOffsets(nn.Module):
 		self.p = Pi.shape[0]
 
 		self.Z = Z.reshape((self.D, self.N, 1))
-		self.Pi = Pi.T.reshape((1, self.N, self.p))
+		self.Pi = (Pi.T).reshape((1, self.N, self.p))
 		self.U = U.reshape((self.D, 1, self.p))
 
 		self.alpha = nn.Parameter(alpha_init.reshape((1,1,self.p-1)))

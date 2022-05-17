@@ -24,11 +24,11 @@ from modules import cc_nn, pca_init, flatten_patches, find_patches_community_det
 def cc(X, d_desired, k=-1):
 	######### HYPERPARAMTERS ####
 	# used for softmax
-	_gamma = 0.1
+	_gamma = 3
 	# noise tolerance fo rdata
 	_eps = 1e-2
 	#  how much to widen neighborhoods for neighboring detection
-	_eps_N = 0
+	_eps_N = 0.05
 	##############################
 
 	# set up needed variables
@@ -66,6 +66,8 @@ def cc(X, d_desired, k=-1):
 		find_patches_community_detection.find_neighborhood_structure(Z, k, _eps, _eps_N)
 
 	print(merges)
+	for i in range(len(G_N)):
+		print(G_N[i])
 
 	p = len(ind_Z)
 	# test flatten from points
@@ -75,11 +77,11 @@ def cc(X, d_desired, k=-1):
 	# it has been reduced as much as possible
 	d_tracker = d_current
 
-	for i in range(len(ind_Z)):
-		plt.plot(Z[0,:], Z[1,:], '.')
-		plt.plot(Z[0,ind_Z[i]], Z[1,ind_Z[i]], '.',c='r')
-		plt.title(f"ind set {i+1}")
-		plt.show()
+	# for i in range(len(ind_Z)):
+	# 	plt.plot(Z[0,:], Z[1,:], '.')
+	# 	plt.plot(Z[0,ind_Z[i]], Z[1,ind_Z[i]], '.',c='r')
+	# 	plt.title(f"ind set {i+1}")
+	# 	plt.show()
 	while d_tracker > d_desired:
 		print(f'---------- GLOBAL STEP: d={d_tracker} ----------')
 		# STEP 1: update memberships
@@ -127,6 +129,8 @@ def cc(X, d_desired, k=-1):
 
 				Z = ZPi[:d_current,:].detach()
 				plt.plot(Z[0,:], Z[1,:], '.')
+				u_show = U[:,i].detach().numpy()*20
+				plt.quiver(0, 0, u_show[0], u_show[1],scale_units='xy', angles='xy',scale=1)
 				plt.title(f"lin-proj-global;d:{d_current}")
 				plt.show()
 			else:
