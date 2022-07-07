@@ -34,7 +34,7 @@ print('Loading data...')
 # ############ dummy data
 # Z = torch.randn(10,1000)
 d = 2
-n = 500
+n = 50
 Z =torch.zeros((d,n))
 for i in range(n):
 	x = (1.5 - 1.4/2 +1.4*(i+1)/n)*torch.pi
@@ -50,7 +50,7 @@ Z_norm_orig = np.linalg.norm(Z, 'fro')
 Z = Z * n / Z_norm_orig
 print('Starting CC!')
 # main training command
-f = cc.cc(Z, d_desired=1,k=200)
+f = cc.cc(Z, d_desired=1)
 
 Z_new = f(Z).detach().numpy()
 
