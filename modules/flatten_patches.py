@@ -23,9 +23,9 @@ def flatten_from_points(Z, ind_Z, G_N0, U_global):
 
 	# construct pytorch optimization object
 	flatten = FlattenFromPoints(Z, ind_Z, G_N0, U_0)
-	opt = optim.SGD(flatten.parameters(), lr=0.1)
+	opt = optim.SGD(flatten.parameters(), lr=0.01)
 
-	for i in range(1000):
+	for i in range(3000):
 		flatten.zero_grad()
 		# forward call of LinFlow
 		loss = flatten()
@@ -69,7 +69,7 @@ def flatten_from_normals(U_base, merge, G, U_global):
 
 	# construct pytorch optimization object
 	flatten = FlattenFromNormals(U_base, merge, G, U_0)
-	opt = optim.SGD(flatten.parameters(), lr=0.01)
+	opt = optim.SGD(flatten.parameters(), lr=0.001)
 
 	for i in range(1000):
 		flatten.zero_grad()
@@ -119,7 +119,7 @@ def align_offsets(ZPi, U):
 	# construct pytorch optimization object
 	print(f'Pi shape: {Pi[[0],:].shape}')
 	align_0 = AlignFirstOffset(Z, Pi[[0],:], U[:,[0]], alpha_init[0])
-	opt_0 = optim.Adam(align_0.parameters(), lr=1)
+	opt_0 = optim.Adam(align_0.parameters(), lr=0.1)
 
 	for i in range(1000):
 		align_0.zero_grad()
@@ -227,7 +227,7 @@ class FlattenFromPoints(nn.Module):
 		# 2. compute the curvature loss between normal vectors
 		U_gram_neighbors = (self.U.T @ self.U)[self.G_N0]
 		# note U represents a subspace, so U is equivalent to -U. 
-		loss += 0.25*(U_gram_neighbors.pow(2) - 1).pow(2).mean()
+		loss += 0.25*((1-U_gram_neighbors)/2).pow(4).mean()
 
 		return loss
 
@@ -246,7 +246,7 @@ class FlattenFromNormals(nn.Module):
 		self.U = nn.Parameter(U_0)
 
 		# boolean determining if this is a global projection or not
-		self.global_proj = G.numel() > 1
+		self.global_proj = not (G.numel() > 1)
 
 	def forward(self):
 		loss = 0
@@ -259,13 +259,13 @@ class FlattenFromNormals(nn.Module):
 			# abs val of inner products with normals in merged neighborhood
 			U_inner = (self.U_base[:,self.merge[i]]*self.U[:,[i]]).sum(dim=0).abs()
 			# want them as close to 1 as possible.
-			loss += 0.25*(U_inner.pow(2) - 1).pow(2).mean()
+			loss -= 0.25*((U_inner + 1) / 2).mean()
 
 		# 2. compute the curvature loss between normal vectors
-		if self.global_proj:
+		if not self.global_proj:
 			U_gram_neighbors = (self.U.T @ self.U)[self.G]
 			# loss -= 0.5*U_gram_neighbors.pow(2).mean()
-			loss += 0.25*(U_gram_neighbors.pow(2) - 1).pow(2).mean()
+			loss -= 0.25*((U_gram_neighbors + 1)/2).mean()
 
 		return loss
 
