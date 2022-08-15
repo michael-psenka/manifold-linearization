@@ -4,7 +4,7 @@ import torch.optim as optim
 
 # gives initial flattening from points in neighborhoods
 # input:
-# Z: data matrix of shape (D,n)
+# Z: data matrix of shape (n,D)
 # ind_Z: set of index sets corresponding to neighborhoods
 # G_N0: adjacency matrix of neighborhoods
 # U_global: collection of current global normal directions
@@ -16,8 +16,10 @@ def flatten_from_points(Z, ind_Z, G_N0, U_global):
 
 	# get number of neighborhoods
 	p = len(ind_Z)
+	# get dim of embedding space
+	d = Z.shape[1]
 	# initialize normal directions
-	U_0 = torch.randn(Z.shape[0], p)
+	U_0 = torch.randn(d, p)
 	# normalize columns
 	U_0 = U_0/U_0.norm(dim=0, keepdim=True)
 
@@ -107,10 +109,10 @@ def flatten_from_normals(U_base, merge, G, U_global):
 
 def align_offsets(ZPi, U):
 	p = U.shape[1]
-	D = ZPi.shape[0] - p
+	D = ZPi.shape[1] - p
 
-	Z = ZPi[:D,:]
-	Pi = ZPi[D:,:]
+	Z = ZPi[:,:D]
+	Pi = ZPi[:,D:].T
 	# initialize normal directions
 	alpha_init = torch.randn(p)
 
@@ -219,9 +221,9 @@ class FlattenFromPoints(nn.Module):
 		# 1. compute the injectivity loss within each neighborhood
 		for i in range(self.p):
 			# stack single column of U to compare with dist vecs of Z_i
-			U_stacked = torch.ones(self.Z_[i].shape)*self.U[:,[i]]
+			U_stacked = torch.ones(self.Z_[i].shape).T*self.U[:,[i]]
 			# correlations betwee difference vectors of Z_i and u
-			corr_dZi_u = (self.Z_[i].T @ U_stacked - U_stacked.T @ self.Z_[i])*self.edm_inv_[i]
+			corr_dZi_u = (self.Z_[i] @ U_stacked - U_stacked.T @ self.Z_[i].T)*self.edm_inv_[i]
 			# add to loss
 			loss += 0.25*corr_dZi_u.pow(4).mean()
 		# 2. compute the curvature loss between normal vectors
@@ -276,7 +278,7 @@ class AlignFirstOffset(nn.Module):
 		super(AlignFirstOffset, self).__init__();
 		# full data. standardize shape to (D, N, p)
 		# needed for downstream broadcasting
-		self.D, self.N = Z.shape
+		self.N, self.D = Z.shape
 
 		self.Z = Z
 		# shape (1,N)
@@ -290,7 +292,7 @@ class AlignFirstOffset(nn.Module):
 
 		# get evaluation with proposed offset
 
-		uuTZ = U_0 @ (U_0.T @ Z)
+		uuTZ = (Z @ U_0) @ U_0.T
 
 		self.Z_proj = self.Z - uuTZ
 
@@ -314,7 +316,7 @@ class AlignOffsets(nn.Module):
 		super(AlignOffsets, self).__init__();
 		# full data. standardize shape to (D, N, p)
 		# needed for downstream broadcasting
-		self.D, self.N = Z.shape
+		self.N, self.D = Z.shape
 		self.p = Pi.shape[0]
 
 		self.Z = Z.reshape((self.D, self.N, 1))

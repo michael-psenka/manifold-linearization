@@ -32,8 +32,8 @@ class Manifold:
 
   def vecField(self, t, x):
     # Evaluate the vector field at a set of points x
-    # x: R^(D x N)
-    # returns: v in R^(D x N)
+    # x: R^(N x D)
+    # returns: v in R^(N x D)
 
     # Evaluate the basis functions at x
     # (output is of shape (D, N, n_basis))
@@ -47,19 +47,19 @@ class Manifold:
     coeffs_reshape_sin = self.coeffs_sin.reshape((self.D, 1, self.n_basis))
 
     # final evaluation and sum over basis
-    return (coeffs_reshape_cos*torch.cos(torch.pi * basis_eval_cos) \
-      + coeffs_reshape_sin*torch.sin(torch.pi * basis_eval_sin)).sum(dim=2)
+    return ((coeffs_reshape_cos*torch.cos(torch.pi * basis_eval_cos) \
+      + coeffs_reshape_sin*torch.sin(torch.pi * basis_eval_sin)).sum(dim=2)).T
 
   def embedCoordinates(self, psi):
     # Evaluate the manifold at set of coordinates psi
     # psi: R^(d x N)
-    # returns:=x in R^(D x N)
+    # returns:=x in R^(N x D)
     N = psi.shape[1]
     x_psi = torch.zeros(self.D, N)
     x_psi[:self.d, :] = psi
     t = torch.tensor([0.0,0.3])
     x = odeint(self.vecField, x_psi, t)
-    return x[1,:,:]
+    return x[1,:,:].T
 
   def generateSample(self, N, uniform=False):
     # Generate N samples from the manifold

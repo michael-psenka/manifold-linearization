@@ -13,13 +13,13 @@ class CommunityDetection:
         Builds KNN graph, where k = O(sqrt(n)). Vertices are n data points xi, edges are 1/d(xi, xj)
         if xj is one of the k nearest neighbors of xi.
 
-        :param X: data matrix, (d, n)
+        :param X: data matrix, (n, d)
         :param eps: perturbation to avoid divide-by-zero error, default=1e-8 should be good
 
         properties:
         knn_graph: networkx graph, where nodes are data points, and edges are 1/d(xi, xj) for k nearest neighbors
         """
-        d, n = X.shape
+        n, d = X.shape
 
         # if unspecified, default to sqrt(n)
         if k == -1:
@@ -38,7 +38,7 @@ class CommunityDetection:
         # VECTORIZED COMPUTATION
         # output is a scipy sparse matrix
         knn_graph = kneighbors_graph(
-            X.T, k, mode='distance', include_self=False)
+            X, k, mode='distance', include_self=False)
         # multiplicative inverse of all nonzero entries
         knn_data = knn_graph.data
         knn_graph.data = 1 / (knn_data + eps)
@@ -110,7 +110,7 @@ def find_patches_and_merge_path(X: torch.Tensor, k: int = -1):
     Finds the neighborhoods in X. Neighborhoods are disjoint for now, but there is a principled merging scheme
     (run a few more iterations of Clauset-Newman-Moore and see which communities it chooses to merge).
 
-    :param X: data matrix, (d, n)
+    :param X: data matrix, (n, d)
     :param k: number of neighbors to consider
     :return: a list of index sets I_k where each I_k is a community and U I_k = {1, ..., n}
     """
@@ -141,7 +141,7 @@ def find_patches_and_merge_path(X: torch.Tensor, k: int = -1):
 
 def find_neighborhood_structure(X: torch.Tensor, k: int = -1, _eps: float = 1e-8, _eps_N: float = 0):
     # extract ambient dimension
-    D = X.shape[0]
+    D = X.shape[1]
     
     # determine if using CPU or GPU
     on_GPU = X.is_cuda
@@ -196,7 +196,7 @@ def find_neighborhood_structure(X: torch.Tensor, k: int = -1, _eps: float = 1e-8
     # create neighborhood sets
     X_N = []
     for i in range(p):
-        X_N.append(X[:,torch.tensor(list(ind_X[i]))])
+        X_N.append(X[torch.tensor(list(ind_X[i])), :])
 
     # ####### Find neighboring structure of neighborhoods
 
@@ -205,12 +205,12 @@ def find_neighborhood_structure(X: torch.Tensor, k: int = -1, _eps: float = 1e-8
 
     # create neighborhood sets
     for i in range(p):
-        X_i_mu = X_N[i].mean(dim=1, keepdim=True)
+        X_i_mu = X_N[i].mean(dim=0, keepdim=True)
         # RHS indexing just to get pytorch to work
         mu_N.append(X_i_mu)
 
         X_c = X_N[i] - X_i_mu
-        U, S, V = torch.svd(X_c)
+        U, S, V = torch.svd(X_c.T)
         # account for potential noise in future
         S += _eps
         Sinv = torch.diag(1/S)
@@ -218,7 +218,7 @@ def find_neighborhood_structure(X: torch.Tensor, k: int = -1, _eps: float = 1e-8
         A_N.append((1/(1+_eps_N))*Sinv@U.T)
 
         # after expanding neighborhoods, recalculate index sets
-        ind_X[i] = (A_N[i]@(X - mu_N[i])).norm(dim=0) <= 1
+        ind_X[i] = ((X - mu_N[i])@A_N[i].T).norm(dim=1) <= 1
 
     ############# 3. Find adjacency structure for neighborhoods
     # neighboring graph

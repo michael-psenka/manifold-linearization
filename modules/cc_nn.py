@@ -26,27 +26,28 @@ class CCLayer(nn.Module):
 
 		
 	def forward(self, ZPi):
-		# ZPi: tensor of shape (D+p) x N, a concatenation of the data and
+		# ZPi: tensor of shape N x (D+p), a concatenation of the data and
 		# their neighborhood membership probabilities
 		# we pass both through since we don't need to recompute the membership
 		# at every layer
 
-		# Z: R^(D x N)
+		# Z: R^(N x D)
 		# Pi: R^(p x N)
 
 		# returns: tensor of shape (D + p) x N
 
-		Z = ZPi[:self.D, :]
-		Pi = ZPi[self.D:, :]
+		Z = ZPi[:,:self.D]
+		Pi = ZPi[:, self.D:].T
 
 
 		# if only one neighborhood, simply global projection operator
 		if self.p == 1:
 			# note we don't need offset for global linear operator
-			return Z - self.U@self.U.T@Z
+			# NOTE: edge case does not return full ZPi matrix
+			return Z - Z@self.U@self.U.T
 
 		# otherwise, we need smooth mixing of local operators
-		N = Z.shape[1]
+		N = Z.shape[0]
 
 		# vector offsets for affine projectors
 		b = self.U*self.alpha.reshape((1,self.p))
@@ -77,7 +78,7 @@ class CCLayer(nn.Module):
 		# (output is of shape (D, N))
 		Z_out = (affine_proj * (Pi.T).reshape((1, N, self.p))).sum(dim=2)
 
-		return torch.vstack((Z_out, Pi))
+		return torch.vstack((Z_out.T, Pi)).T
 
 # update membership estimation; note we don't need to update at every layer,
 # since application of layer shouldn't change membership much of test points
@@ -97,12 +98,12 @@ class CCUpdatePi(nn.Module):
 		
 	def forward(self, ZPi):
 		# reshaped Z for broadcasting operations
-		Z = ZPi[:self.D, :]
-		D, N = Z.shape
+		Z = ZPi[:, :self.D]
+		N, D = Z.shape
 
 		N_eval_norms = torch.zeros((N, self.p))
 		for i in range(self.p):
-			N_eval_norms[:, i] = (self.N_A[i] @ (Z - self.N_mu[i])).pow(2).sum(dim=0)
+			N_eval_norms[:, i] = ((Z - self.N_mu[i])@self.N_A[i].T).pow(2).sum(dim=0)
 
 		# vectorized
 		# Z_reshape = Z.reshape((D, N, 1))
@@ -125,7 +126,7 @@ class CCUpdatePi(nn.Module):
 		# Compute the output
 		# (output is of shape (D + k, N))
 		
-		return torch.vstack((Z, Pi))
+		return torch.vstack((Z.T, Pi)).T
 
 # we will iteratively build this network through calls to Sequential.add_module:
 # e.g. ccn = CCNetwork(); ccn.network.add_module("layer1", CCLayer(Np, U, alpha, gamma))
@@ -168,8 +169,8 @@ class LinearProj(nn.Module):
 		self.D = D
 		
 	def forward(self, ZPi):
-		Z = ZPi[:self.D, :]
-		return Z - self.u@self.u.T@Z
+		Z = ZPi[:, :self.D]
+		return Z - Z@self.u@self.u.T
 
 # translate and rescale data for downstream training
 # akin to layer/batch normalization

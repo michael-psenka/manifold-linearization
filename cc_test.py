@@ -35,12 +35,12 @@ print('Loading data...')
 # Z = torch.randn(10,1000)
 d = 2
 n = 50
-Z =torch.zeros((d,n))
+Z =torch.zeros((n,d))
 for i in range(n):
 	x = (1.5 - 1.4/2 +1.4*(i+1)/n)*torch.pi
-	Z[0,i] = torch.cos(torch.tensor(x))
+	Z[i,0] = torch.cos(torch.tensor(x))
 	# Z[1,i] = scale*np.sin(x)
-	Z[1,i] = torch.sin(torch.tensor(x))
+	Z[i,1] = torch.sin(torch.tensor(x))
 
 
 # center and scale

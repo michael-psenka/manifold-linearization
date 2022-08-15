@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 from modules import cc_nn, pca_init, flatten_patches, find_patches_community_detection
 # ****************************i*************************************************
 # This is the primary script for the curvature compression algorithm.
-# Input: data matrix X of shape (D,n), where D is the embedding dimension and
+# Input: data matrix X of shape (n,D), where D is the embedding dimension and
 # n is the number of data points; OPTIONAL: Ne of shape (D,k) are k center
 # points determining neighborhoods, and E of shape (k,k) a binary matrix
 # denoting which neighborhoods are connected.
@@ -32,7 +32,7 @@ def cc(X, d_desired, k=-1):
 	##############################
 
 	# set up needed variables
-	D, N = X.shape
+	N, D = X.shape
 	cc_network = cc_nn.CCNetwork()
 	# default k if not specified
 	if k == -1:
@@ -43,7 +43,7 @@ def cc(X, d_desired, k=-1):
 	# (d_current, m) when we've made m global flattenings
 	U_global = torch.zeros(1)
 
-	mu = X.mean(axis=1, keepdim=True)
+	mu = X.mean(axis=0, keepdim=True)
 	# scaled global norm based on number of samples
 	global_norm = (X - mu).norm(p=2) / N
 	
@@ -78,8 +78,8 @@ def cc(X, d_desired, k=-1):
 	d_tracker = d_current
 
 	for i in range(len(ind_Z)):
-		plt.plot(Z[0,:], Z[1,:], '.')
-		plt.plot(Z[0,ind_Z[i]], Z[1,ind_Z[i]], '.',c='r')
+		plt.plot(Z[:,0], Z[:,1], '.')
+		plt.plot(Z[ind_Z[i], 0], Z[ind_Z[i], 1], '.',c='r')
 		plt.title(f"ind set {i+1}")
 		plt.show()
 	while d_tracker > d_desired:
@@ -96,7 +96,7 @@ def cc(X, d_desired, k=-1):
 
 		# Note that ZPi[:d_current,:] is Z, and ZPi[d_current:,:] is Pi
 		# print('Finding normals...')
-		U = flatten_patches.flatten_from_points(Z[:d_current,:], ind_Z, G_N[0], U_global)
+		U = flatten_patches.flatten_from_points(Z[:,:d_current], ind_Z, G_N[0], U_global)
 
 		# print('Aligning projectors...')
 		alpha = flatten_patches.align_offsets(ZPi, U)
@@ -106,10 +106,10 @@ def cc(X, d_desired, k=-1):
 
 		cc_network.add_operation(cclayer, f"lin-base;d:{d_current}")
 
-		Z = ZPi[:d_current,:].detach()
+		Z = ZPi[:,:d_current].detach()
 		for i in range(len(ind_Z)):
-			plt.plot(Z[0,:], Z[1,:], '.')
-			plt.plot(Z[0,ind_Z[i]], Z[1,ind_Z[i]], '.',c='r')
+			plt.plot(Z[:,0], Z[:,1], '.')
+			plt.plot(Z[ind_Z[i],0], Z[ind_Z[i],1], '.',c='r')
 			u_show = U[:,i].detach().numpy()*20
 			plt.quiver(0, 0, u_show[0], u_show[1],scale_units='xy', angles='xy',scale=1)
 			plt.title(f"ind set {i+1}")
@@ -127,8 +127,8 @@ def cc(X, d_desired, k=-1):
 				ZPi = cclayer(ZPi)
 				cc_network.add_operation(cclayer, f"lin-proj-global;d:{d_current}")
 
-				Z = ZPi[:d_current,:].detach()
-				plt.plot(Z[0,:], Z[1,:], '.')
+				Z = ZPi[:,:d_current].detach()
+				plt.plot(Z[:,0], Z[:,1], '.')
 				u_show = U[:,0].detach().numpy()*20
 				plt.quiver(0, 0, u_show[0], u_show[1],scale_units='xy', angles='xy',scale=1)
 				plt.title(f"lin-proj-global;d:{d_current}")
@@ -146,8 +146,8 @@ def cc(X, d_desired, k=-1):
 				ZPi = cclayer(ZPi)
 				cc_network.add_operation(cclayer, f"lin-normals-{i+1};d:{d_current}")
 
-				Z = ZPi[:d_current,:].detach()
-				plt.plot(Z[0,:], Z[1,:], '.')
+				Z = ZPi[:,:d_current].detach()
+				plt.plot(Z[:,0], Z[:,1], '.')
 				plt.title(f"lin-normals-{i+1};d:{d_current}")
 				plt.show()
 
