@@ -1,5 +1,6 @@
 import torch
 import math
+import matplotlib.pyplot as plt
 
 from pykeops.torch import Genred
 
@@ -37,15 +38,9 @@ def flattening_deformation(X, K, eps=0.1, Cmax = 100, a1=0.1, a2=0.1, adaptive=F
         a1 = 1e-4 * math.cos((2* math.pi * (C%T))/T) if adaptive else a1
 
         V = a1 * torch.sum(Vr, dim=1) + a2 * torch.sum(Ve, dim=1)
-        if torch.norm(V, p='inf') < eps:
+        if torch.norm(V, p=float('inf')) < eps:
             return Xc
         Xc = Xc + V
         C = C+1
 
     return Xc
-    
-
-N = 100
-D = 10
-X = torch.rand(N, D)
-flattening_deformation(X, 10, 0.1)
