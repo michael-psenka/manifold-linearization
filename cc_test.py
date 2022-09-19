@@ -46,13 +46,13 @@ class Args:
 	""" starting value of the "inverse neighborhood size", in the sense that:
 	# smaller values of gamma_0 correspond to larger neighborhood sizes, and vice versa """
 
-# NOTE: if adding a new dataset, add it to the list below as well as the switch statement
+# NOTE: if adding a new dataset, add it to 1the list below as well as the big if statement
 # inside the main function
 datasets = {
   "sine wave": "The graph of a single period sine wave embedded in 2D",
   "semicircle": "A semicircle of 1.5pi radians embedded in 2D",
   "MNIST": """A single class of the MNIST dataset (in our case, the 2's). This is in spirit to the
-		\"union of manifolds\" hypothesis""",
+		\"union of manifolds\" hypothesis.""",
 }
 
 if __name__ == "__main__":
