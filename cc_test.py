@@ -12,6 +12,8 @@ import torchvision.transforms as transforms
 
 
 import cc
+from models.gan import train_infogan
+from models.vae import train_vae
 
 # magic argparser library thank you github.com/brentyi
 import dataclasses
@@ -62,7 +64,9 @@ datasets = {
 }
 
 models = {
-	"cc": "our method, explicitly constructing an encoder/decoder pair using the geometry of the data"
+	"cc": "our method, explicitly constructing an encoder/decoder pair using the geometry of the data",
+	"infogan": "Interpretable Representation Learning by Information Maximizing Generative Adversarial Nets",
+	"vae": "Variational Autoencoders"
 }
 
 if __name__ == "__main__":
@@ -127,6 +131,12 @@ if __name__ == "__main__":
 
 	if args.model == 'cc':
 		Z = cc.cc(X)
+	elif args.model == "infogan":
+		f, g = train_infogan(X)
+		Z = g(f(X))
+	elif args.model == "vae":
+		f, g = train_vae(X)
+		Z = g(f(X))
 
 
 	plt.plot(Z[:,0], Z[:,1], '.')
