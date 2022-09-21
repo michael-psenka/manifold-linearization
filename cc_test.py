@@ -65,7 +65,8 @@ datasets = {
   "semicircle": "A semicircle of 1.5pi radians embedded in 2D",
   "MNIST": """A single class of the MNIST dataset (in our case, the 2's). This is in spirit to the
 		\"union of manifolds\" hypothesis.""",
-  "random-manifold": "A random manifold of intrinsic dimension d embedded in D dimensions"
+  "random-manifold": "A random manifold of intrinsic dimension d embedded in D dimensions",
+  "CIFAR": "A single class of the CIFAR10 dataset (the dog class)."
 }
 
 models = {
@@ -124,6 +125,17 @@ if __name__ == "__main__":
 		# select single class of dataset
 		X = data[labels==2]
 		X = X.reshape((5958,32**2))
+		X = X.T
+	elif args.dataset == "CIFAR":
+		dataset = datasets.CIFAR10(root='./torch-dataset', train=True,
+								download=True)
+		data_loader = torch.utils.data.DataLoader(dataset, batch_size=50000)
+		data,labels = next(iter(data_loader))
+		data = data.cuda()
+
+		# select single class of dataset
+		X = data[labels=='dog']
+		X = X.reshape((6000, 32**2))
 		X = X.T
 	elif args.dataset == "random-manifold":
 		N = args.N
