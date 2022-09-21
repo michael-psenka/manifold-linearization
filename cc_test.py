@@ -34,6 +34,12 @@ class Args:
 
 	get_datasets: bool = False  # If true, print out a list of available datasets and exit.
 
+	model: str = "cc"
+	"""A string indicating which dataset to use.
+	 Run "python cc_test.py --get-datasets" for a list of possible datasets."""
+
+	get_models: bool = False  # If true, print out a list of available datasets and exit.
+
 	N: int = 100
 	""" Number of training datapoints to use. Note this will not effect some
 	 datasets, such as MNIST """
@@ -55,6 +61,10 @@ datasets = {
 		\"union of manifolds\" hypothesis.""",
 }
 
+models = {
+	"cc": "our method, explicitly constructing an encoder/decoder pair using the geometry of the data"
+}
+
 if __name__ == "__main__":
 
 	# parse command line arguments
@@ -63,6 +73,11 @@ if __name__ == "__main__":
 	if args.get_datasets:
 		print("Available datasets:\n")
 		for dataset, desc in datasets.items():  # dct.iteritems() in Python 2
+			print(f"{dataset}: {desc} \n")
+		exit(0)
+	if args.get_models:
+		print("Available models:\n")
+		for model, desc in models.items():  # dct.iteritems() in Python 2
 			print(f"{dataset}: {desc} \n")
 		exit(0)
 
@@ -104,14 +119,15 @@ if __name__ == "__main__":
 		sys.exit('Invalid dataset. Run "python cc_test.py --get-datasets" for a list of possible datasets.')
 
 
-	# center and scale data
+	# center and scale data. not explicitly needed for cc, but helps numerically
 	X_mean = torch.mean(X, dim=0)
 	X = X - X_mean
 	X_norm = torch.norm(X)/np.sqrt(N*D) #expeded norm of gaussian is sqrt(D)
 	X = X / X_norm
 
+	if args.model == 'cc':
+		Z = cc.cc(X)
 
-	Z = cc.cc(X, d_target=args.d_target, gamma_0=args.gamma_0, n_iters=args.n_iters)
 
 	plt.plot(Z[:,0], Z[:,1], '.')
 	plt.show()
