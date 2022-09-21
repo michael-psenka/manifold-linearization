@@ -13,6 +13,7 @@ import torchvision.transforms as transforms
 
 import cc
 from models.vae import train_vanilla_vae, train_beta_vae, train_factor_vae
+from tools.manifold_generator import Manifold
 
 # magic argparser library thank you github.com/brentyi
 import dataclasses
@@ -49,17 +50,22 @@ class Args:
 
 	d_target: int = 1 # dimension we want to flatten the data to
 
+	D: int = 2 # the embedding dimension of the manifold (for random-manifold generation)
+
+	d: int = 1 # the intrinsic dimension of the manifold (for random-manifold generation)
+
 	gamma_0: float = 1
 	""" starting value of the "inverse neighborhood size", in the sense that:
 	# smaller values of gamma_0 correspond to larger neighborhood sizes, and vice versa """
 
-# NOTE: if adding a new dataset, add it to 1the list below as well as the big if statement
+# NOTE: if adding a new dataset, add it to the list below as well as the big if statement
 # inside the main function
 datasets = {
-  "sine wave": "The graph of a single period sine wave embedded in 2D",
+  "sine-wave": "The graph of a single period sine wave embedded in 2D",
   "semicircle": "A semicircle of 1.5pi radians embedded in 2D",
   "MNIST": """A single class of the MNIST dataset (in our case, the 2's). This is in spirit to the
 		\"union of manifolds\" hypothesis.""",
+  "random-manifold": "A random manifold of intrinsic dimension d embedded in D dimensions"
 }
 
 models = {
@@ -119,6 +125,11 @@ if __name__ == "__main__":
 		X = data[labels==2]
 		X = X.reshape((5958,32**2))
 		X = X.T
+	elif args.dataset == "random-manifold":
+		N = args.N
+		D = args.D
+		manifold = Manifold(D, args.d)
+		X = manifold.generateSample(N)
 	else:
 		sys.exit('Invalid dataset. Run "python cc_test.py --get-datasets" for a list of possible datasets.')
 
@@ -130,7 +141,7 @@ if __name__ == "__main__":
 	X = X / X_norm
 
 	if args.model == 'cc':
-		Z = cc.cc(X)
+		Z = cc.cc(X, args.d_target)
 	elif args.model == "vae":
 		f, g = train_vanilla_vae(X)
 		Z = g(f(X))

@@ -33,7 +33,7 @@ class Manifold:
   def vecField(self, t, x):
     # Evaluate the vector field at a set of points x
     # x: R^(N x D)
-    # returns: v in R^(N x D)
+    # returns: v in R^(D x N)
 
     # Evaluate the basis functions at x
     # (output is of shape (D, N, n_basis))
@@ -48,7 +48,7 @@ class Manifold:
 
     # final evaluation and sum over basis
     return ((coeffs_reshape_cos*torch.cos(torch.pi * basis_eval_cos) \
-      + coeffs_reshape_sin*torch.sin(torch.pi * basis_eval_sin)).sum(dim=2)).T
+      + coeffs_reshape_sin*torch.sin(torch.pi * basis_eval_sin)).sum(dim=2))
 
   def embedCoordinates(self, psi):
     # Evaluate the manifold at set of coordinates psi
