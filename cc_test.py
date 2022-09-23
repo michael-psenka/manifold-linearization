@@ -4,12 +4,9 @@ import sys
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
-import torch.nn as nn
-import torch.optim as optim
 
-import torchvision.datasets as datasets
-import torchvision.transforms as transforms
-
+from torchvision.datasets import MNIST
+from torchvision.datasets import CIFAR10
 
 import cc
 from models.vae import train_vanilla_vae, train_beta_vae, train_factor_vae
@@ -42,7 +39,7 @@ class Args:
 
 	get_models: bool = False  # If true, print out a list of available datasets and exit.
 
-	N: int = 100
+	N: int = 50
 	""" Number of training datapoints to use. Note this will not effect some
 	 datasets, such as MNIST """
 
@@ -66,7 +63,7 @@ datasets = {
   "MNIST": """A single class of the MNIST dataset (in our case, the 2's). This is in spirit to the
 		\"union of manifolds\" hypothesis.""",
   "random-manifold": "A random manifold of intrinsic dimension d embedded in D dimensions",
-  "CIFAR": "A single class of the CIFAR10 dataset (the dog class)."
+  "CIFAR10": "A single class of the CIFAR10 dataset (the dog class)."
 }
 
 models = {
@@ -114,7 +111,7 @@ if __name__ == "__main__":
 			X[i,1] = np.sin(theta_coord)
 
 	elif args.dataset == "MNIST":
-		dataset = datasets.MNIST(root='./torch-dataset', train=True,
+		dataset = MNIST(root='./torch-dataset', train=True,
 								download=True)
 
 		# load dataset into pytorch
@@ -126,8 +123,8 @@ if __name__ == "__main__":
 		X = data[labels==2]
 		X = X.reshape((5958,32**2))
 		X = X.T
-	elif args.dataset == "CIFAR":
-		dataset = datasets.CIFAR10(root='./torch-dataset', train=True,
+	elif args.dataset == "CIFAR10":
+		dataset = CIFAR10(root='./torch-dataset', train=True,
 								download=True)
 		data_loader = torch.utils.data.DataLoader(dataset, batch_size=50000)
 		data,labels = next(iter(data_loader))
@@ -153,17 +150,23 @@ if __name__ == "__main__":
 	X = X / X_norm
 
 	if args.model == 'cc':
-		Z = cc.cc(X, args.d_target)
+		f, g = cc.cc(X)
 	elif args.model == "vae":
 		f, g = train_vanilla_vae(X)
-		Z = g(f(X))
 	elif args.model == "betavae":
 		f, g = train_beta_vae(X)
-		Z = g(f(X))
 	elif args.model == "factorvae":
 		f, g = train_factor_vae(X)
-		Z = g(f(X))
 
 
-	plt.plot(Z[:,0], Z[:,1], '.')
-	plt.show()
+	# save features and reconstructions
+	Z = f(X.detach())
+	X_hat = g(Z)
+	# plot the results if possible
+	if D == 2:
+		plt.scatter(X[:, 0], X[:,1], c='b')
+		plt.scatter(Z[:, 0], Z[:,1], c='r')
+		plt.scatter(X_hat[:, 0], X_hat[:,1], c='c')
+		plt.legend(['X', 'Z', 'Xhat', 'x_mu'])
+		plt.title(f'Linearization performance of {args.model} on {args.dataset}')
+		plt.show()
