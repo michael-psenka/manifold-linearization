@@ -7,8 +7,9 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 import matplotlib.pyplot as plt
+from archive import find_patches_community_detection, flatten_patches, pca_init
 
-from modules import cc_nn, pca_init, flatten_patches, find_patches_community_detection
+from archive import cc_nn_old
 # ****************************i*************************************************
 # This is the primary script for the curvature compression algorithm.
 # Input: data matrix X of shape (n,D), where D is the embedding dimension and
@@ -33,7 +34,7 @@ def cc_old(X, d_desired, k=-1):
 
 	# set up needed variables
 	N, D = X.shape
-	cc_network = cc_nn.CCNetwork()
+	cc_network = cc_nn_old.CCNetwork()
 	# default k if not specified
 	if k == -1:
 		k = min(int(N ** 0.5) + 1, N)
@@ -48,14 +49,14 @@ def cc_old(X, d_desired, k=-1):
 	global_norm = (X - mu).norm(p=2) / N
 	
 	# add centering to network
-	cc_network.add_operation(cc_nn.CCNormalize(mu, 1/global_norm))
+	cc_network.add_operation(cc_nn_old.CCNormalize(mu, 1/global_norm))
 	# now we start calling X as Z as we pass it through our constructed networkj
 	Z = X - mu
 	print('Init PCA to reduce nonnecessary dimensions...')
 	# STEP 0: use PCA to project out machine-precision directions
 	Z, U_r = pca_init.pca_init(Z)
 	# add PCA operation to network
-	cc_network.add_operation(cc_nn.LinearCol(U_r.T), "pca")
+	cc_network.add_operation(cc_nn_old.LinearCol(U_r.T), "pca")
 	# new ambient dimension, rank of PCA
 	d_current = U_r.shape[1]
 
@@ -86,7 +87,7 @@ def cc_old(X, d_desired, k=-1):
 		print(f'---------- GLOBAL STEP: d={d_tracker} ----------')
 		# STEP 1: update memberships
 		# print('Finding membership...')
-		layer_pi = cc_nn.CCUpdatePi(_gamma, A_N, mu_N)
+		layer_pi = cc_nn_old.CCUpdatePi(_gamma, A_N, mu_N)
 		ZPi = layer_pi(Z)
 
 		cc_network.add_operation(layer_pi, f"pi;d:{d_current}")
@@ -101,7 +102,7 @@ def cc_old(X, d_desired, k=-1):
 		# print('Aligning projectors...')
 		alpha = flatten_patches.align_offsets(ZPi, U)
 
-		cclayer = cc_nn.CCLayer(U, alpha)
+		cclayer = cc_nn_old.CCLayer(U, alpha)
 		ZPi = cclayer(ZPi)
 
 		cc_network.add_operation(cclayer, f"lin-base;d:{d_current}")
@@ -123,7 +124,7 @@ def cc_old(X, d_desired, k=-1):
 
 			# if this is the last iteration, we know it's just a global projection
 			if i == len(merges) - 1:
-				cclayer = cc_nn.LinearProj(U, d_current)
+				cclayer = cc_nn_old.LinearProj(U, d_current)
 				ZPi = cclayer(ZPi)
 				cc_network.add_operation(cclayer, f"lin-proj-global;d:{d_current}")
 
@@ -141,7 +142,7 @@ def cc_old(X, d_desired, k=-1):
 				# print('Aligning projectors...')
 				alpha = flatten_patches.align_offsets(ZPi, U_base)
 				# print('Creating and applying layer...')
-				cclayer = cc_nn.CCLayer(U_base, alpha)
+				cclayer = cc_nn_old.CCLayer(U_base, alpha)
 				# note only Z is affected here, we just need Pi in
 				ZPi = cclayer(ZPi)
 				cc_network.add_operation(cclayer, f"lin-normals-{i+1};d:{d_current}")
