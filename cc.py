@@ -33,15 +33,18 @@ def cc(X):
 	# how many iterations to binary search for biggest possible radius
 	fid = 10
 	# number of flattening steps to perform (currently no stoppic criterion)
-	n_iter = 50
+	n_iter = 200
 	# how many max steps for inner optimization of U, V
 	# (stopping criterion implemented)
 	n_iter_inner = 1000
 	# threshold for reconstruction loss being good enough
-	thres_recon = 1e-4
+	thres_recon = 3e-5
 
 	# global parameter for kernel
-	alpha = 0.5
+	alpha_max = 0.5
+
+	# minimum radius for kernel
+	r_ratio_min = 0.3
 
 
 	############# INIT GLOBAL VARIABLES##########
@@ -53,6 +56,9 @@ def cc(X):
 	# ################ MAIN LOOP #########################
 	with trange(n_iter, unit="iters") as pbar:
 		for _ in pbar:
+
+			# for checking convergence
+			did_shrink = False
 
 			# start our "neighborhood size" at max possible
 			d_max = torch.cdist(Z, Z).max()
@@ -77,7 +83,7 @@ def cc(X):
 				gamma = log2/d_curr**2
 				kernel_pre = torch.exp(-gamma*(Z - z_c).pow(2).sum(dim=1, keepdim=True))
 				z_mu = (Z*kernel_pre).sum(dim=0, keepdim=True) / kernel_pre.sum()
-				kernel = alpha*torch.exp(-gamma*(Z - z_mu).pow(2).sum(dim=1, keepdim=True))
+				kernel = torch.exp(-gamma*(Z - z_mu).pow(2).sum(dim=1, keepdim=True))
 
 				U_old = U.data.clone()
 				# inner loop, find best U, V to reconstruct
@@ -93,7 +99,7 @@ def cc(X):
 
 					# least squares solution for V, note automatically orthogonal to U
 					# with torch.no_grad():
-					V = ((A.T@A).inverse() @ (A.T@b)).T
+					V = (torch.linalg.pinv(A)@b).T
 
 					loss = 0.5*(kernel*(Z_perp - coord2@V.T)).pow(2).mean()
 					# loss = (U).pow(2).mean()
@@ -110,19 +116,35 @@ def cc(X):
 				
 				# achieved desired recon loss, so increase neighborhood
 				# size
+
+				# threshold at min radius, tune step size alpha
+				# to achieve reconstruction loss
+				if d_curr / d_max < r_ratio_min:
+					break
+					
+
 				if loss.item() <= thres_recon:
 					d_curr += d_init * (0.5)**(i+1)
 				# didn't achieve desired recon loss, so decrease neighborhood
 				else:
 					d_curr -= d_init * (0.5)**(i+1)
+					did_shrink = True
 
 				# if radius already bigger than biggest possible, no need to continue searching
 				if d_curr > d_max:
 					break
+			
 
+			# step size small enough to achieve reconstruction loss, and also
+			# small enough to keep output manifold smooth
+			alpha = float(min(alpha_max, np.sqrt(thres_recon/loss.item())))
 			Z = Z.detach()
 			U = U.detach()
 			V = V.detach()
+
+			# MAIN CONVERGENCE: is neighborhood size global and reconstruction linear?
+			if not did_shrink and V.pow(2).mean().sqrt().item() < 1e-4:
+				break
 
 			f_layer = cc_nn.FLayer(U, z_mu, gamma, alpha)
 			g_layer = cc_nn.GLayer(U, V, z_mu, z_c, gamma, alpha)
@@ -131,6 +153,9 @@ def cc(X):
 			g.add_operation(g_layer)
 			# update data
 			Z = f_layer(Z)
-			pbar.set_postfix({"loss": loss.item(), "d_ratio": (d_curr/d_max).item()})
+
+			with torch.no_grad():
+				recon_loss = 0.5*(g(Z) - X).pow(2).mean()
+			pbar.set_postfix({"loss": loss.item(), "d_ratio": (d_curr/d_max).item(), "alpha": alpha, "recon_loss": recon_loss.item()})
 
 	return f, g
