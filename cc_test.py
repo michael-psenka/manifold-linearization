@@ -161,7 +161,13 @@ if __name__ == "__main__":
 
 	# save features and reconstructions
 	Z = f(X.detach())
-	X_hat = g(Z)
+	# if you want to check interpolation, uncomment the following lines
+	# Z_0 = Z[0,:]
+	# Z_1 = Z[-1,:]
+	# Z_new = torch.zeros((200, Z.shape[1]))
+	# for i in range(200):
+	# 	Z_new[i,:] = Z_0 + i/200*(Z_1-Z_0)
+	X_hat = g(Z_new)
 	# plot the results if possible
 	if D == 2:
 		plt.scatter(X[:, 0], X[:,1], c='b')
