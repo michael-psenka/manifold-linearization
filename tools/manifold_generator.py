@@ -21,7 +21,7 @@ from torchdiffeq import odeint
 # curvature: scalar parameter controlling maximum extrinsic curvature
 # n_basis: number of basis functions used to represent manifold
 class Manifold:
-  def __init__(self, D, d, curvature=0.1, n_basis=5):
+  def __init__(self, D, d, curvature=0.3, n_basis=5):
     self.D = D
     self.d = d
     self.curvature = curvature
@@ -60,7 +60,7 @@ class Manifold:
       self.coeffs_cos.append(coeffs_cos)
       self.coeffs_sin.append(coeffs_sin)
 
-  def vecField(self, X, dim):
+  def vecField(self, X, dim, ortho=True):
     # Evaluate the vector field at a set of points X
     # X: R^(N x D)
     # returns: V_dim in R^(N x D)
@@ -71,23 +71,73 @@ class Manifold:
     # vector field normalized to reduce distortion from coordinate space to
     # embedding space
 
+    # If given the option, use gram-schmidt to orthogonalize the basis vectors
+    # at every point 1st basis element
+
+    # only given option since this is quite expensive for higher intrinsic
+    # dimensions
     N = X.shape[0]
-    # bases evals, i.e. the (u, v) inside the cos and sin. Output tensor is of shape
-    # (N, D, n_basis)
-    basis_eval_cos = (self.basis_cos[dim].reshape((1, self.D, self.D, self.n_basis)) \
-      * X.reshape((N, 1, self.D, 1))).sum(dim=2)
-    basis_eval_sin = (self.basis_sin[dim].reshape((1, self.D, self.D, self.n_basis)) \
-      * X.reshape((N, 1, self.D, 1))).sum(dim=2)
 
-    coeffs_reshape_cos = self.coeffs_cos[dim].reshape((1, self.D, self.n_basis))
-    coeffs_reshape_sin = self.coeffs_sin[dim].reshape((1, self.D, self.n_basis))
+    if ortho:
+      # reserve memory for full basis up to (dim)
+      V_full = torch.zeros((N, self.D, dim+1))
+      # bases evals, i.e. the (u, v) inside the cos and sin. Output tensor is of shape
+      # (N, D, n_basis)
+      basis_eval_cos = (self.basis_cos[0].reshape((1, self.D, self.D, self.n_basis)) \
+        * X.reshape((N, 1, self.D, 1))).sum(dim=2)
+      basis_eval_sin = (self.basis_sin[0].reshape((1, self.D, self.D, self.n_basis)) \
+        * X.reshape((N, 1, self.D, 1))).sum(dim=2)
 
-    # final evaluation and sum over basis. output tensor is of shape (N, D)
-    f_eval = (coeffs_reshape_cos*torch.cos(torch.pi * basis_eval_cos) \
-      + coeffs_reshape_sin*torch.sin(torch.pi * basis_eval_sin)).sum(dim=2)
+      coeffs_reshape_cos = self.coeffs_cos[0].reshape((1, self.D, self.n_basis))
+      coeffs_reshape_sin = self.coeffs_sin[0].reshape((1, self.D, self.n_basis))
 
-    # normalize tanget vectors to control norm distortion when integrating
-    return f_eval / f_eval.norm(dim=1, keepdim=True)
+      # final evaluation and sum over basis. output tensor is of shape (N, D)
+      V = (coeffs_reshape_cos*torch.cos(torch.pi * basis_eval_cos) \
+        + coeffs_reshape_sin*torch.sin(torch.pi * basis_eval_sin)).sum(dim=2)
+
+      V = V / V.norm(dim=1, keepdim=True)
+      V_full[:, :, 0] = V
+      
+      # apply gram-schmidt until we get to our desired dimension
+      for i in range(1, dim+1):
+        # get the new vector field
+        basis_eval_cos = (self.basis_cos[i].reshape((1, self.D, self.D, self.n_basis)) \
+          * X.reshape((N, 1, self.D, 1))).sum(dim=2)
+        basis_eval_sin = (self.basis_sin[i].reshape((1, self.D, self.D, self.n_basis)) \
+          * X.reshape((N, 1, self.D, 1))).sum(dim=2)
+
+        coeffs_reshape_cos = self.coeffs_cos[i].reshape((1, self.D, self.n_basis))
+        coeffs_reshape_sin = self.coeffs_sin[i].reshape((1, self.D, self.n_basis))
+
+        # final evaluation and sum over basis. output tensor is of shape (N, D)
+        V = (coeffs_reshape_cos*torch.cos(torch.pi * basis_eval_cos) \
+          + coeffs_reshape_sin*torch.sin(torch.pi * basis_eval_sin)).sum(dim=2)
+
+        # orthogonalize, V_i=  V_i - V_<i V_<i^T V_i for all i \in [N]
+        V = V - \
+          ((V.reshape((N, self.D, 1)) * V_full[:,:,:i]).sum(dim=1, keepdim=True) * V_full[:,:,:i]).sum(dim=2)
+        V = V / V.norm(dim=1, keepdim=True)
+
+        # store for future gram schmidt iterations
+        V_full[:, :, i] = V
+
+      # normalize tanget vectors to control norm distortion when integrating
+      return V_full[:, :, -1]
+
+    else:
+      basis_eval_cos = (self.basis_cos[dim].reshape((1, self.D, self.D, self.n_basis)) \
+        * X.reshape((N, 1, self.D, 1))).sum(dim=2)
+      basis_eval_sin = (self.basis_sin[dim].reshape((1, self.D, self.D, self.n_basis)) \
+        * X.reshape((N, 1, self.D, 1))).sum(dim=2)
+
+      coeffs_reshape_cos = self.coeffs_cos[dim].reshape((1, self.D, self.n_basis))
+      coeffs_reshape_sin = self.coeffs_sin[dim].reshape((1, self.D, self.n_basis))
+
+      # final evaluation and sum over basis. output tensor is of shape (N, D)
+      V = (coeffs_reshape_cos*torch.cos(torch.pi * basis_eval_cos) \
+        + coeffs_reshape_sin*torch.sin(torch.pi * basis_eval_sin)).sum(dim=2)
+
+      return V / V.norm(dim=1, keepdim=True)
 
   def embedCoordinates(self, psi):
     # Evaluate the manifold at set of coordinates psi, describes at top of file
