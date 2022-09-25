@@ -174,6 +174,16 @@ if __name__ == "__main__":
 		plt.scatter(X[:, 0], X[:,1], c='b')
 		plt.scatter(Z[:, 0], Z[:,1], c='r')
 		plt.scatter(X_hat[:, 0], X_hat[:,1], c='c')
-		plt.legend(['X', 'Z', 'Xhat', 'x_mu'])
+		plt.legend(['X', 'Z', 'Xhat'])
 		plt.title(f'Linearization performance of {args.model} on {args.dataset}')
+		plt.show()
+
+	elif D == 3:
+		fig = plt.figure()
+		ax = fig.add_subplot(111, projection='3d')
+		ax.scatter(X[:, 0], X[:,1], X[:,2], c='b')
+		ax.scatter(Z[:, 0], Z[:,1], Z[:,2], c='r')
+		ax.scatter(X_hat[:, 0], X_hat[:,1], X_hat[:,2], c='c')
+		ax.legend(['X', 'Z', 'Xhat'])
+		ax.set_title(f'Linearization performance of {args.model} on {args.dataset}')
 		plt.show()
