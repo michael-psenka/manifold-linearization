@@ -7,6 +7,9 @@ import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
 
+# used for optimizing over Stiefel
+import geoopt
+
 from modules import cc_nn
 
 from tqdm import trange
@@ -34,10 +37,10 @@ def cc(X):
 	n_stop_to_converge = 5
 	converge_counter = 0
 	# number of flattening steps to perform
-	n_iter = 200
+	n_iter = 100
 	# how many max steps for inner optimization of U, V
 	# (stopping criterion implemented)
-	n_iter_inner = 1000
+	n_iter_inner = 10000
 	# threshold for reconstruction loss being good enough
 	thres_recon = 3e-5
 
@@ -51,7 +54,7 @@ def cc(X):
 	# radius for checking dimension. Should be as small as possible,
 	# but big enough that at every point there's at least one sample
 	# along every intrinsic dimension
-	r_dimcheck = 0.25*EDM_X.max()
+	r_dimcheck = 0.1*EDM_X.max()
 	# minimum allowed radius for each flattening
 	# want this to be relatively larger to converge to flat
 	# representation faster
@@ -161,11 +164,18 @@ def cc(X):
 # ################## HELPER METHODS #####################
 
 def opt_UV(Z, z_c, U_0, n_iter_inner, r=-1, kernel=-1):
+	D, d = U_0.shape
+	# initialize geoopt manifold object
+	stiefel = geoopt.manifolds.Stiefel()
+	# make parameter for geoopt
+	with torch.no_grad():
+		U = geoopt.ManifoldParameter(U_0, manifold=stiefel).proj_()
 	# optimize U, V
-	U = torch.nn.Parameter(U_0.clone())
-	U.requires_grad = True
+	# U = torch.nn.Parameter(U_0.clone())
+	# U.requires_grad = True
 
-	opt_U = optim.SGD([U], lr=1)
+	# opt_U = optim.SGD([U], lr=0.1)
+	opt_U = geoopt.optim.RiemannianAdam([U], lr=0.1)
 
 	# must specify either r or kernel
 	if type(r) != torch.Tensor and type(kernel) != torch.Tensor:
@@ -178,6 +188,28 @@ def opt_UV(Z, z_c, U_0, n_iter_inner, r=-1, kernel=-1):
 		z_mu = (Z*kernel_pre).sum(dim=0, keepdim=True) / kernel_pre.sum()
 		kernel = torch.exp(-gamma*(Z - z_mu).pow(2).sum(dim=1, keepdim=True))
 	
+
+	# function to minimize
+	# def loss_fn():
+	# 	opt_U.zero_grad()
+	# 	# opt_V.zero_grad()
+	# 	# opt_alpha.zero_grad()
+	# 	coord = (Z - z_c) @ U
+	# 	Z_perp = (Z - z_c) - coord @ U.T
+	# 	coord2 = coord.pow(2)
+	# 	A = coord2 * kernel
+	# 	b = Z_perp * kernel
+
+	# 	# least squares solution for V, note automatically orthogonal to U
+	# 	with torch.no_grad():
+	# 		V = ((A.T@A).inverse() @ (A.T@b)).T
+
+	# 	loss = 0.5*(kernel*(Z_perp - coord2@V.T)).pow(2).mean()
+	# 	# loss = (U).pow(2).mean()
+	# 	loss.backward()
+
+	# 	return loss.item()
+
 	# optimize U
 	for i in range(n_iter_inner):
 		U_old = U.data.clone()
@@ -191,31 +223,31 @@ def opt_UV(Z, z_c, U_0, n_iter_inner, r=-1, kernel=-1):
 		b = Z_perp * kernel
 
 		# least squares solution for V, note automatically orthogonal to U
-		with torch.no_grad():
-			V = ((A.T@A).inverse() @ (A.T@b)).T
+		# with torch.no_grad():
+		V = ((A.T@A).inverse() @ (A.T@b)).T
 
 		loss = 0.5*(kernel*(Z_perp - coord2@V.T)).pow(2).mean()
 		# loss = (U).pow(2).mean()
 		loss.backward()
 
 		opt_U.step()
-		# update to gradient
 
 		with torch.no_grad():
 			
-			# project onto Steifel manifold
-			if U.data.shape[1] == 1:
-				U.data = U.data / torch.norm(U.data, p=2)
-			else:
-				U_svd, S_svd, Vh_svd = torch.linalg.svd(U.data, full_matrices=False)
-				U.data = U_svd@Vh_svd
+			# # project onto Stiefel manifold
+			# if U.data.shape[1] == 1:
+			# 	U.data = U.data / torch.norm(U.data, p=2)
+			# else:
+			# 	U_svd, S_svd, Vh_svd = torch.linalg.svd(U.data, full_matrices=False)
+			# 	U.data = U_svd@Vh_svd
 
 			step_size = (U.data - U_old).pow(2).mean().sqrt()
 			U_old = U.data.clone()
 
 			if step_size < 1e-5:
 				break
-			
+	# if i >= n_iter_inner - 1:
+	# 	print('Warning: U did not converge')		
 	loss_final = 0.5*(kernel*(Z_perp - coord2@V.T)).pow(2).mean()
 	return U.detach().data, V.detach().data, loss_final.detach()
 
