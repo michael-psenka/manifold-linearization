@@ -138,7 +138,18 @@ if __name__ == "__main__":
 		N = args.N
 		D = args.D
 		manifold = Manifold(D, args.d)
+		# X = manifold.generateSample(N)
+		# coord = torch.zeros((N,args.d))
+		# coord[:,0] = torch.linspace(-1,1,N)
+		# coord[:,1] = (1 - 1e-4) + torch.linspace(-1e-4,1e-4,N)
+		# X = manifold.embedCoordinates(coord)
 		X = manifold.generateSample(N)
+		# show manifold
+		# fig = plt.figure()
+		# ax = fig.add_subplot(111, projection='3d')
+		# # ax.scatter(X[:int(N / 2), 0], X[:int(N / 2),1], X[:int(N / 2),2], c='b')
+		# # ax.scatter(X[int(N / 2):, 0], X[int(N / 2):,1], X[int(N / 2):,2], c='r')
+		# ax.scatter(X[:, 0], X[:,1], X[:,2], c='c')
 	else:
 		sys.exit('Invalid dataset. Run "python cc_test.py --get-datasets" for a list of possible datasets.')
 
