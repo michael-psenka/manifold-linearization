@@ -21,7 +21,7 @@ from torchdiffeq import odeint
 # curvature: scalar parameter controlling maximum extrinsic curvature
 # n_basis: number of basis functions used to represent manifold
 class Manifold:
-  def __init__(self, D, d, curvature=0.3, n_basis=5):
+  def __init__(self, D, d, curvature=0.6, n_basis=3):
     self.D = D
     self.d = d
     self.curvature = curvature
@@ -114,6 +114,7 @@ class Manifold:
           + coeffs_reshape_sin*torch.sin(torch.pi * basis_eval_sin)).sum(dim=2)
 
         # orthogonalize, V_i=  V_i - V_<i V_<i^T V_i for all i \in [N]
+        # TODO: check correctness of this
         V = V - \
           ((V.reshape((N, self.D, 1)) * V_full[:,:,:i]).sum(dim=1, keepdim=True) * V_full[:,:,:i]).sum(dim=2)
         V = V / V.norm(dim=1, keepdim=True)
