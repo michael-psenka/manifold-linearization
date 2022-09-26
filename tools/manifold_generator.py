@@ -21,7 +21,7 @@ from torchdiffeq import odeint
 # curvature: scalar parameter controlling maximum extrinsic curvature
 # n_basis: number of basis functions used to represent manifold
 class Manifold:
-  def __init__(self, D, d, curvature=0.6, n_basis=3):
+  def __init__(self, D, d, curvature=0.5, n_basis=3):
     self.D = D
     self.d = d
     self.curvature = curvature
@@ -44,16 +44,26 @@ class Manifold:
       # coord 0 cooresponds to the index of the output of the vector field
       # coord 1 corresponds to the index of the inner vector (i.e. u_i)
       # coord 2 corresponds to which basis function we are using
-      basis_cos = torch.randn(D, D, n_basis)
+
+      # normalize the curvauture term by the intrinsic dimension
+      curv_normalized = curvature / d
+      # NOTE: we use the uniform distribution instead of the normal
+      # distribution here because we want to make a hard bound on the
+      # curvature.
+      
+      basis_cos = 2*(torch.rand(D, D, n_basis) - 1)*curv_normalized
       # measure curvature as size of basis vectors inside trig funcs
-      basis_cos /= (torch.norm(basis_cos, dim=0) / curvature)
+      # basis_cos /= (torch.norm(basis_cos, dim=0) / curvature)
       self.basis_cos.append(basis_cos)
       # do same for sin
-      basis_sin = torch.randn(D, D, n_basis)
-      basis_sin /= (torch.norm(basis_sin, dim=0) / curvature)
+      basis_sin = 2*(torch.rand(D, D, n_basis) - 1)*curv_normalized
+      # basis_sin /= (torch.norm(basis_sin, dim=0) / curvature)
       self.basis_sin.append(basis_sin)
       # coefficients of basis functions, random element on unit sphere
       # of norm D
+
+      # We can use the normal distribution here since these scales will be
+      # normalized via normalization of the vector field
       coeffs_cos = torch.randn(D, n_basis)
       coeffs_sin = torch.randn(D, n_basis)
 
@@ -158,19 +168,22 @@ class Manifold:
       t, t_idx = psi[:, i].sort()
 
       t_pos = t[t>0]
-      # solution is of shape (t.numel() ,N, D)
-      sol_pos = odeint(f, X_t, t_pos, method='rk4', rtol=1e-6, atol=1e-6)
+      if torch.numel(t_pos) > 0:
+        # solution is of shape (t.numel() ,N, D)
+        sol_pos = odeint(f, X_t, t_pos, method='rk4', rtol=1e-6, atol=1e-6)
+        # note above we did a little overkill, evaluate all times for all points,
+        # but we only want each point's corresponding time
+        # (note diag is weird and outputs the diagonalized index last)
+        X_t[t_idx[t>0],:] = sol_pos[:,t_idx[t>0],:].diagonal(dim1=0, dim2=1).T
+
       # note that input time needs to be positive and sorted, can recover
       # from full sorted list of times as follows
       t_neg = -t[t<= 0].flip(dims=[0])
-      sol_neg = odeint(f_neg, X_t, t_neg, method='rk4', rtol=1e-6, atol=1e-6)
-      sol_neg = sol_neg.flip(dims=[0])
-      # note above we did a little overkill, evaluate all times for all points,
-      # but we only want each point's corresponding time
-
-      # (note diag is weird and outputs the diagonalized index last)
-      X_t[t_idx[t>0],:] = sol_pos[:,t_idx[t>0],:].diagonal(dim1=0, dim2=1).T
-      X_t[t_idx[t<=0],:] = sol_neg[:,t_idx[t<=0],:].diagonal(dim1=0, dim2=1).T
+      if torch.numel(t_neg) > 0:
+        sol_neg = odeint(f_neg, X_t, t_neg, method='rk4', rtol=1e-6, atol=1e-6)
+        sol_neg = sol_neg.flip(dims=[0])
+        
+        X_t[t_idx[t<=0],:] = sol_neg[:,t_idx[t<=0],:].diagonal(dim1=0, dim2=1).T
 
     return X_t
 
@@ -182,7 +195,7 @@ class Manifold:
     # Generate N random coordinates
     if uniform:
       # uniform btwn [-1,1]
-      psi = 2*torch.rand((N, self.d)) - 1
+      psi = (2*torch.rand((N, self.d)) - 1)
     else:
       psi = torch.randn((N, self.d))
 
