@@ -76,13 +76,12 @@ class GLayer(nn.Module):
 # TODO: look into if this inversion is well-conditioned
 def kernel_inv(Z_norm2, ZU_norm2, gamma, alpha):
 	
-
 	# parameter setup
 	ZUperp_norm2 = Z_norm2 - ZU_norm2
 	exp_gammaz = torch.exp(-gamma*ZU_norm2)
 
 	# initial guess
-	guess_ratio = 1 - 1e-4
+	guess_ratio = 1 - 1e-3
 	# x_{n-2}
 	x_m2 = ZUperp_norm2 * guess_ratio
 	# x_{n-1}
@@ -99,7 +98,8 @@ def kernel_inv(Z_norm2, ZU_norm2, gamma, alpha):
 		f_m2 = (1-alpha*exp_gammaz*torch.exp(-gamma*x_m2)).pow(2)*x_m2 - ZUperp_norm2
 
 		f_diff = f_m1 - f_m2
-		f_diff[f_diff.abs() < 1e-6] = 1e-6
+		f_diff[torch.logical_and(f_diff.abs() < 1e-6, f_diff >= 0)] = 1e-6
+		f_diff[torch.logical_and(f_diff.abs() < 1e-6, f_diff < 0)] = -1e-6
 
 		x = x_m1 - f_m1*(x_m1 - x_m2)/f_diff
 
