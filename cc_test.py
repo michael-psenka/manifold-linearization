@@ -33,11 +33,11 @@ class Args:
 
 	get_datasets: bool = False  # If true, print out a list of available datasets and exit.
 
+	get_models: bool = False  # If true, print out a list of available models and exit.
+
 	model: str = "cc"
 	"""A string indicating which dataset to use.
 	 Run "python cc_test.py --get-datasets" for a list of possible datasets."""
-
-	get_models: bool = False  # If true, print out a list of available datasets and exit.
 
 	N: int = 50
 	""" Number of training datapoints to use. Note this will not effect some
@@ -157,7 +157,8 @@ if __name__ == "__main__":
 		f, g = train_beta_vae(X)
 	elif args.model == "factorvae":
 		f, g = train_factor_vae(X)
-
+	else:
+		sys.exit('Invalid model. Run "python cc_test.py --get-models" for a list of possible models.')
 
 	# save features and reconstructions
 	Z = f(X.detach())
