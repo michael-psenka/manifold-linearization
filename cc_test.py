@@ -100,6 +100,8 @@ if __name__ == "__main__":
 			X[i,0] = x_coord
 			X[i,1] = np.sin(x_coord)
 
+		# X = X + 0.1*torch.randn(X.shape)
+
 	elif args.dataset == "semicircle":
 		N = args.N
 		D = 2
@@ -172,20 +174,20 @@ if __name__ == "__main__":
 		sys.exit('Invalid model. Run "python cc_test.py --get-models" for a list of possible models.')
 
 	# save features and reconstructions
-	Z = f(X.detach())
+	Z = f(X).detach()
 	# if you want to check interpolation, uncomment the following lines
 	# Z_0 = Z[0,:]
 	# Z_1 = Z[-1,:]
 	# Z_new = torch.zeros((200, Z.shape[1]))
 	# for i in range(200):
 	# 	Z_new[i,:] = Z_0 + i/200*(Z_1-Z_0)
-	X_hat = g(Z)
+	X_hat = g(Z).detach()
 	# X_hat = g(Z_new)
 	# plot the results if possible
 	if D == 2:
 		plt.scatter(X[:, 0], X[:,1], c='b')
 		plt.scatter(Z[:, 0], Z[:,1], c='r')
-		plt.scatter(X_hat[:, 0], X_hat[:,1], c='c')
+		plt.scatter(X_hat[:, 0], X_hat[:,1], c='g')
 		plt.legend(['X', 'Z', 'Xhat'])
 		plt.title(f'Linearization performance of {args.model} on {args.dataset}')
 		plt.show()
