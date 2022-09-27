@@ -37,18 +37,15 @@ def cc(X):
 	n_stop_to_converge = 5
 	converge_counter = 0
 	# number of flattening steps to perform
-	n_iter = 100
+	n_iter = 40
 	# how many max steps for inner optimization of U, V
 	# (stopping criterion implemented)
-	n_iter_inner = 10000
+	n_iter_inner = 5000
 	# threshold for reconstruction loss being good enough
-	thres_recon = 3e-5
+	thres_recon = 1e-4
 
 	# global parameter for kernel
 	alpha_max = 0.5
-
-	# minimum radius for kernel
-	r_ratio_min = 0.3
 
 	EDM_X = torch.cdist(X, X,p=2)
 	# radius for checking dimension. Should be as small as possible,
@@ -58,7 +55,7 @@ def cc(X):
 	# minimum allowed radius for each flattening
 	# want this to be relatively larger to converge to flat
 	# representation faster
-	r_min = 0.25*EDM_X.max()
+	r_min = 0.2*EDM_X.max()
 	# maximum allowed radius for each flattening
 	r_max = 1.1*EDM_X.max()
 	# minimum step size for determining optimal radius
@@ -175,7 +172,7 @@ def opt_UV(Z, z_c, U_0, n_iter_inner, r=-1, kernel=-1):
 	# U.requires_grad = True
 
 	# opt_U = optim.SGD([U], lr=0.1)
-	opt_U = geoopt.optim.RiemannianAdam([U], lr=0.1)
+	opt_U = geoopt.optim.RiemannianAdam([U], lr=0.3)
 
 	# must specify either r or kernel
 	if type(r) != torch.Tensor and type(kernel) != torch.Tensor:
@@ -246,8 +243,8 @@ def opt_UV(Z, z_c, U_0, n_iter_inner, r=-1, kernel=-1):
 
 			if step_size < 1e-5:
 				break
-	# if i >= n_iter_inner - 1:
-	# 	print('Warning: U did not converge')		
+	if i >= n_iter_inner - 1:
+		print('Warning: U did not converge')		
 	loss_final = 0.5*(kernel*(Z_perp - coord2@V.T)).pow(2).mean()
 	return U.detach().data, V.detach().data, loss_final.detach()
 
