@@ -21,7 +21,7 @@ from torchdiffeq import odeint
 # curvature: scalar parameter controlling maximum extrinsic curvature
 # n_basis: number of basis functions used to represent manifold
 class Manifold:
-  def __init__(self, D, d, curvature=0.5, n_basis=3):
+  def __init__(self, D, d, curvature=0.3, n_basis=3):
     self.D = D
     self.d = d
     self.curvature = curvature
