@@ -34,13 +34,13 @@ def cc(X):
 	##############################
 
 	# how many times of no progress do we call convergence?
-	n_stop_to_converge = 5
+	n_stop_to_converge = 3
 	converge_counter = 0
 	# number of flattening steps to perform
-	n_iter = 40
+	n_iter = 300
 	# how many max steps for inner optimization of U, V
 	# (stopping criterion implemented)
-	n_iter_inner = 5000
+	n_iter_inner = 1000
 	# threshold for reconstruction loss being good enough
 	thres_recon = 1e-4
 
@@ -51,15 +51,19 @@ def cc(X):
 	# radius for checking dimension. Should be as small as possible,
 	# but big enough that at every point there's at least one sample
 	# along every intrinsic dimension
-	r_dimcheck = 0.1*EDM_X.max()
+	r_dimcheck = 0.2*EDM_X.max()
 	# minimum allowed radius for each flattening
 	# want this to be relatively larger to converge to flat
 	# representation faster
 	r_min = 0.2*EDM_X.max()
 	# maximum allowed radius for each flattening
 	r_max = 1.1*EDM_X.max()
+	# 2nd radius to check for secant optimization
+	r_midpoint = 0.7*r_min + 0.3*r_max
 	# minimum step size for determining optimal radius
-	r_step_min = EDM_X[EDM_X > 0].min()
+	r_step_min = 0.9*EDM_X[EDM_X > 0].min() + 0.1*EDM_X.max()
+	# max steps to take when finding biggest r
+	n_iter_rsearch = 3
 
 	############# INIT GLOBAL VARIABLES##########
 	# encoder network
@@ -93,7 +97,7 @@ def cc(X):
 			r_m1 = (r_min + r_max)/2
 			f_m1 = torch.log(loss_rmidpoint) - log_thres_recon
 
-			while torch.abs(r_m1 - r_m2) > r_step_min:
+			for _ in range(n_iter_rsearch):
 
 				# threshold denominator for numerical stability
 				f_diff = f_m1 - f_m2
@@ -118,6 +122,10 @@ def cc(X):
 				f_m2 = f_m1.clone()
 				r_m1 = r.clone()
 				f_m1 = f_r.clone()
+
+				# stopping condition
+				if torch.abs(r_m1 - r_m2) > r_step_min:
+					break
 				
 
 			# STEP 3: line search for biggest alpha that gets us to desired fidelity
@@ -148,11 +156,10 @@ def cc(X):
 				Z = Z_new.clone()
 
 			
-			with torch.no_grad():
-				recon_loss = 0.5*(g(Z) - X).pow(2).mean()
+			# with torch.no_grad():
+			# 	recon_loss = 0.5*(g(Z) - X).pow(2).mean()
 			pbar.set_postfix({"local_recon": loss_r.item(), \
-				"global_recon": recon_loss.item(), "d": U.shape[1], \
-					"r_ratio": (r/r_max).item(), "alpha": alpha})
+				"d": U.shape[1], "r_ratio": (r/r_max).item(), "alpha": alpha})
 
 	return f, g
 
@@ -162,6 +169,7 @@ def cc(X):
 
 def opt_UV(Z, z_c, U_0, n_iter_inner, r=-1, kernel=-1):
 	D, d = U_0.shape
+
 	# initialize geoopt manifold object
 	stiefel = geoopt.manifolds.Stiefel()
 	# make parameter for geoopt
@@ -172,7 +180,7 @@ def opt_UV(Z, z_c, U_0, n_iter_inner, r=-1, kernel=-1):
 	# U.requires_grad = True
 
 	# opt_U = optim.SGD([U], lr=0.1)
-	opt_U = geoopt.optim.RiemannianAdam([U], lr=0.3)
+	opt_U = geoopt.optim.RiemannianAdam([U], lr=1)
 
 	# must specify either r or kernel
 	if type(r) != torch.Tensor and type(kernel) != torch.Tensor:
@@ -220,8 +228,8 @@ def opt_UV(Z, z_c, U_0, n_iter_inner, r=-1, kernel=-1):
 		b = Z_perp * kernel
 
 		# least squares solution for V, note automatically orthogonal to U
-		# with torch.no_grad():
-		V = ((A.T@A).inverse() @ (A.T@b)).T
+		with torch.no_grad():
+			V = ((A.T@A).inverse() @ (A.T@b)).T
 
 		loss = 0.5*(kernel*(Z_perp - coord2@V.T)).pow(2).mean()
 		# loss = (U).pow(2).mean()
@@ -243,8 +251,8 @@ def opt_UV(Z, z_c, U_0, n_iter_inner, r=-1, kernel=-1):
 
 			if step_size < 1e-5:
 				break
-	if i >= n_iter_inner - 1:
-		print('Warning: U did not converge')		
+	# if i >= n_iter_inner - 1:
+	# 	print('Warning: U did not converge')		
 	loss_final = 0.5*(kernel*(Z_perp - coord2@V.T)).pow(2).mean()
 	return U.detach().data, V.detach().data, loss_final.detach()
 

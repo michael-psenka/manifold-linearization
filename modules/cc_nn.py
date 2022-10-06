@@ -75,7 +75,7 @@ class GLayer(nn.Module):
 # below machine precision
 # TODO: look into if this inversion is well-conditioned
 def kernel_inv(Z_norm2, ZU_norm2, gamma, alpha):
-	
+	num_iter = 100
 	# parameter setup
 	ZUperp_norm2 = Z_norm2 - ZU_norm2
 	exp_gammaz = torch.exp(-gamma*ZU_norm2)
@@ -93,7 +93,7 @@ def kernel_inv(Z_norm2, ZU_norm2, gamma, alpha):
 
 	# find inverse by root-finding using secant method
 	
-	while step_size > 1e-6:
+	for _ in range(num_iter):
 		f_m1 = (1-alpha*exp_gammaz*torch.exp(-gamma*x_m1)).pow(2)*x_m1 - ZUperp_norm2
 		f_m2 = (1-alpha*exp_gammaz*torch.exp(-gamma*x_m2)).pow(2)*x_m2 - ZUperp_norm2
 
@@ -106,6 +106,9 @@ def kernel_inv(Z_norm2, ZU_norm2, gamma, alpha):
 		step_size = torch.abs(x - x_m1).max()
 		x_m2 = x_m1
 		x_m1 = x
+
+		if step_size < 1e-6:
+			break
 
 	# return inverse
 	return alpha*torch.exp(-gamma*(ZU_norm2 + x))

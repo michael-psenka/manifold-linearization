@@ -16,6 +16,8 @@ from tools.manifold_generator import Manifold
 import dataclasses
 import dcargs
 
+import cProfile
+
 ##### COMMAND LINE ARGUMENTS #####
 # run cc_test.py --help to get help text
 # for each argument below, underscores become dashes
@@ -89,6 +91,8 @@ if __name__ == "__main__":
 			print(f"{dataset}: {desc} \n")
 		exit(0)
 
+	# set default device to gpu if available
+	torch.set_default_tensor_type(torch.cuda.FloatTensor)
 	# Load the proper dataset
 	if args.dataset == "sine-wave":
 		N = args.N
@@ -152,6 +156,8 @@ if __name__ == "__main__":
 		# # ax.scatter(X[:int(N / 2), 0], X[:int(N / 2),1], X[:int(N / 2),2], c='b')
 		# # ax.scatter(X[int(N / 2):, 0], X[int(N / 2):,1], X[int(N / 2):,2], c='r')
 		# ax.scatter(X[:, 0], X[:,1], X[:,2], c='c')
+
+		print(f'SVD of manifold data: {torch.svd(X - X.mean(dim=0,keepdim=True))[1]}')
 	else:
 		sys.exit('Invalid dataset. Run "python cc_test.py --get-datasets" for a list of possible datasets.')
 
@@ -163,6 +169,7 @@ if __name__ == "__main__":
 	X = X / X_norm
 
 	if args.model == 'cc':
+		# cProfile.run('cc.cc(X)')
 		f, g = cc.cc(X)
 	elif args.model == "vae":
 		f, g = train_vanilla_vae(X)
@@ -174,14 +181,18 @@ if __name__ == "__main__":
 		sys.exit('Invalid model. Run "python cc_test.py --get-models" for a list of possible models.')
 
 	# save features and reconstructions
-	Z = f(X).detach()
+	Z = f(X)
 	# if you want to check interpolation, uncomment the following lines
 	# Z_0 = Z[0,:]
 	# Z_1 = Z[-1,:]
 	# Z_new = torch.zeros((200, Z.shape[1]))
 	# for i in range(200):
 	# 	Z_new[i,:] = Z_0 + i/200*(Z_1-Z_0)
-	X_hat = g(Z).detach()
+	X_hat = g(Z)
+
+	X = X.cpu().detach().numpy()
+	Z = Z.cpu().detach().numpy()
+	X_hat = X_hat.cpu().detach().numpy()
 	# X_hat = g(Z_new)
 	# plot the results if possible
 	if D == 2:
@@ -201,3 +212,5 @@ if __name__ == "__main__":
 		ax.legend(['X', 'Z', 'Xhat'])
 		ax.set_title(f'Linearization performance of {args.model} on {args.dataset}')
 		plt.show()
+	else:
+		print(f'SVD of learned features: {torch.svd(Z - Z.mean(dim=0,keepdim=True))[1]}')
