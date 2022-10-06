@@ -21,7 +21,7 @@ from torchdiffeq import odeint
 # curvature: scalar parameter controlling maximum extrinsic curvature
 # n_basis: number of basis functions used to represent manifold
 class Manifold:
-  def __init__(self, D, d, curvature=0.3, n_basis=3):
+  def __init__(self, D, d, curvature=3, n_basis=3):
     self.D = D
     self.d = d
     self.curvature = curvature
@@ -34,46 +34,40 @@ class Manifold:
     # Finally we need d such functions, one for each intrinsic dimension
     # we need to move to CPU anyways to integerate separate vec fields, so
     # only helps readability to not mash everything into a single tensor
-    self.basis_cos = []
-    self.basis_sin = []
-    self.coeffs_cos = []
-    self.coeffs_sin = []
 
-    for i in range(d):
-      # each coordinate's role:
-      # coord 0 cooresponds to the index of the output of the vector field
-      # coord 1 corresponds to the index of the inner vector (i.e. u_i)
-      # coord 2 corresponds to which basis function we are using
+    # for i in range(d):
+    # each coordinate's role:
+    # coord 0 cooresponds to the index of the output of the vector field
+    # coord 1 corresponds to the index of the inner vector (i.e. u_i)
+    # coord 2 corresponds to which basis function we are using
 
-      # normalize the curvauture term by the intrinsic dimension
-      curv_normalized = curvature / d
-      # NOTE: we use the uniform distribution instead of the normal
-      # distribution here because we want to make a hard bound on the
-      # curvature.
-      
-      basis_cos = 2*(torch.rand(D, D, n_basis) - 1)*curv_normalized
-      # measure curvature as size of basis vectors inside trig funcs
-      # basis_cos /= (torch.norm(basis_cos, dim=0) / curvature)
-      self.basis_cos.append(basis_cos)
-      # do same for sin
-      basis_sin = 2*(torch.rand(D, D, n_basis) - 1)*curv_normalized
-      # basis_sin /= (torch.norm(basis_sin, dim=0) / curvature)
-      self.basis_sin.append(basis_sin)
-      # coefficients of basis functions, random element on unit sphere
-      # of norm D
+    # normalize the curvauture term by the intrinsic dimension
+    curv_normalized = curvature
+    # NOTE: we use the uniform distribution instead of the normal
+    # distribution here because we want to make a hard bound on the
+    # curvature. THere are also empirically less numerical problems
+    # when staying in the positive region (i.e. rand instead of 2*rand-1)
+    
+    self.basis_cos = torch.rand(D, D, n_basis, d)*curv_normalized
+    # measure curvature as size of basis vectors inside trig funcs
+    # basis_cos /= (torch.norm(basis_cos, dim=0) / curvature)
+    # do same for sin
+    self.basis_sin = torch.rand(D, D, n_basis, d)*curv_normalized
+    # basis_sin /= (torch.norm(basis_sin, dim=0) / curvature)
+    # coefficients of basis functions, random element on unit sphere
+    # of norm D
 
-      # We can use the normal distribution here since these scales will be
-      # normalized via normalization of the vector field
-      coeffs_cos = torch.randn(D, n_basis)
-      coeffs_sin = torch.randn(D, n_basis)
+    # We can use the normal distribution here since these scales will be
+    # normalized via normalization of the vector field
+    self.coeffs_cos = torch.rand(D, n_basis, d)
+    self.coeffs_sin = torch.rand(D, n_basis, d)
 
-      self.coeffs_cos.append(coeffs_cos)
-      self.coeffs_sin.append(coeffs_sin)
+    self.cos_offset = 0.5*torch.rand(1, D, n_basis, d)
 
-  def vecField(self, X, dim, ortho=True):
+  def vecField(self, X, ortho=True):
     # Evaluate the vector field at a set of points X
     # X: R^(N x D)
-    # returns: V_dim in R^(N x D)
+    # returns: V_dim in R^(N x D x d)
 
     # Evaluate the basis functions at X
     # (output is of shape (D, N, n_basis))
@@ -88,103 +82,44 @@ class Manifold:
     # dimensions
     N = X.shape[0]
 
+    # reserve memory for full basis up to (dim)
+    # V_full = torch.zeros((N, self.D, dim+1))
+    # bases evals, i.e. the (u, v) inside the cos and sin. Output tensor is of shape
+    # (N, D, n_basis, d)
+    basis_eval_cos = (self.basis_cos.reshape((1, self.D, self.D, self.n_basis, self.d)) \
+      * X.reshape((N, 1, self.D, 1, 1))).sum(dim=2)
+    # basis_eval_sin = (self.basis_sin.reshape((1, self.D, self.D, self.n_basis, self.d)) \
+    #   * X.reshape((N, 1, self.D, 1, 1))).sum(dim=2)
+
+    coeffs_reshape_cos = self.coeffs_cos.reshape((1, self.D, self.n_basis, self.d))
+    # coeffs_reshape_sin = self.coeffs_sin.reshape((1, self.D, self.n_basis, self.d))
+
+    # final evaluation and sum over basis. output tensor is of shape (N, D, d)
+    V = (coeffs_reshape_cos*torch.cos(self.cos_offset + torch.pi * basis_eval_cos)).sum(dim=2)
+      # + coeffs_reshape_sin*torch.sin(1 + torch.pi * basis_eval_sin)).sum(dim=2)
+    
     if ortho:
-      # reserve memory for full basis up to (dim)
-      V_full = torch.zeros((N, self.D, dim+1))
-      # bases evals, i.e. the (u, v) inside the cos and sin. Output tensor is of shape
-      # (N, D, n_basis)
-      basis_eval_cos = (self.basis_cos[0].reshape((1, self.D, self.D, self.n_basis)) \
-        * X.reshape((N, 1, self.D, 1))).sum(dim=2)
-      basis_eval_sin = (self.basis_sin[0].reshape((1, self.D, self.D, self.n_basis)) \
-        * X.reshape((N, 1, self.D, 1))).sum(dim=2)
+      # gram-schmidt orthogonalization
+      V = torch.linalg.qr(V, mode='reduced')[0]
 
-      coeffs_reshape_cos = self.coeffs_cos[0].reshape((1, self.D, self.n_basis))
-      coeffs_reshape_sin = self.coeffs_sin[0].reshape((1, self.D, self.n_basis))
+    return V
 
-      # final evaluation and sum over basis. output tensor is of shape (N, D)
-      V = (coeffs_reshape_cos*torch.cos(torch.pi * basis_eval_cos) \
-        + coeffs_reshape_sin*torch.sin(torch.pi * basis_eval_sin)).sum(dim=2)
-
-      V = V / V.norm(dim=1, keepdim=True)
-      V_full[:, :, 0] = V
-      
-      # apply gram-schmidt until we get to our desired dimension
-      for i in range(1, dim+1):
-        # get the new vector field
-        basis_eval_cos = (self.basis_cos[i].reshape((1, self.D, self.D, self.n_basis)) \
-          * X.reshape((N, 1, self.D, 1))).sum(dim=2)
-        basis_eval_sin = (self.basis_sin[i].reshape((1, self.D, self.D, self.n_basis)) \
-          * X.reshape((N, 1, self.D, 1))).sum(dim=2)
-
-        coeffs_reshape_cos = self.coeffs_cos[i].reshape((1, self.D, self.n_basis))
-        coeffs_reshape_sin = self.coeffs_sin[i].reshape((1, self.D, self.n_basis))
-
-        # final evaluation and sum over basis. output tensor is of shape (N, D)
-        V = (coeffs_reshape_cos*torch.cos(torch.pi * basis_eval_cos) \
-          + coeffs_reshape_sin*torch.sin(torch.pi * basis_eval_sin)).sum(dim=2)
-
-        # orthogonalize, V_i=  V_i - V_<i V_<i^T V_i for all i \in [N]
-        # TODO: check correctness of this
-        V = V - \
-          ((V.reshape((N, self.D, 1)) * V_full[:,:,:i]).sum(dim=1, keepdim=True) * V_full[:,:,:i]).sum(dim=2)
-        V = V / V.norm(dim=1, keepdim=True)
-
-        # store for future gram schmidt iterations
-        V_full[:, :, i] = V
-
-      # normalize tanget vectors to control norm distortion when integrating
-      return V_full[:, :, -1]
-
-    else:
-      basis_eval_cos = (self.basis_cos[dim].reshape((1, self.D, self.D, self.n_basis)) \
-        * X.reshape((N, 1, self.D, 1))).sum(dim=2)
-      basis_eval_sin = (self.basis_sin[dim].reshape((1, self.D, self.D, self.n_basis)) \
-        * X.reshape((N, 1, self.D, 1))).sum(dim=2)
-
-      coeffs_reshape_cos = self.coeffs_cos[dim].reshape((1, self.D, self.n_basis))
-      coeffs_reshape_sin = self.coeffs_sin[dim].reshape((1, self.D, self.n_basis))
-
-      # final evaluation and sum over basis. output tensor is of shape (N, D)
-      V = (coeffs_reshape_cos*torch.cos(torch.pi * basis_eval_cos) \
-        + coeffs_reshape_sin*torch.sin(torch.pi * basis_eval_sin)).sum(dim=2)
-
-      return V / V.norm(dim=1, keepdim=True)
-
+    
+# psi of shape (N, d)
   def embedCoordinates(self, psi):
     # Evaluate the manifold at set of coordinates psi, describes at top of file
-
-    # psi: R^(N x d)
-    # returns: X in R^(N x D)
     N = psi.shape[0]
-    # set up initial condition
     X_t = torch.zeros((N, self.D))
 
-    for i in range(self.d):
-      # integrate the vector field for time psi[:, i]
-      f = lambda t, X: self.vecField(X, dim=i)
-      # will need to handle negative time separately
-      f_neg = lambda t, X: -self.vecField(X, dim=i)
-
-      t, t_idx = psi[:, i].sort()
-
-      t_pos = t[t>0]
-      if torch.numel(t_pos) > 0:
-        # solution is of shape (t.numel() ,N, D)
-        sol_pos = odeint(f, X_t, t_pos, method='rk4', rtol=1e-6, atol=1e-6)
-        # note above we did a little overkill, evaluate all times for all points,
-        # but we only want each point's corresponding time
-        # (note diag is weird and outputs the diagonalized index last)
-        X_t[t_idx[t>0],:] = sol_pos[:,t_idx[t>0],:].diagonal(dim1=0, dim2=1).T
-
-      # note that input time needs to be positive and sorted, can recover
-      # from full sorted list of times as follows
-      t_neg = -t[t<= 0].flip(dims=[0])
-      if torch.numel(t_neg) > 0:
-        sol_neg = odeint(f_neg, X_t, t_neg, method='rk4', rtol=1e-6, atol=1e-6)
-        sol_neg = sol_neg.flip(dims=[0])
-        
-        X_t[t_idx[t<=0],:] = sol_neg[:,t_idx[t<=0],:].diagonal(dim1=0, dim2=1).T
-
+    fid = 1000
+    # numerical integration along vec field:
+    for _ in range(fid):
+      # evaluate all vector field at current point
+      V_full = self.vecField(X_t, self.d)
+      # return desired trajectories from samples. output is of shape (N, D)
+      V = (1/fid)* (V_full * psi.reshape((N, 1, self.d))).sum(dim=2)
+      # integrate along vector field
+      X_t += V
     return X_t
 
   def generateSample(self, N, uniform=True):
@@ -195,7 +130,7 @@ class Manifold:
     # Generate N random coordinates
     if uniform:
       # uniform btwn [-1,1]
-      psi = (2*torch.rand((N, self.d)) - 1)
+      psi = torch.rand((N, self.d))
     else:
       psi = torch.randn((N, self.d))
 
