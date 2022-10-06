@@ -21,4 +21,4 @@ ipython_config.py
 .idea/
 .vscode/
 *.sw*
-.DS_Store
+# .DS_Store
