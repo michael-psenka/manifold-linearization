@@ -54,12 +54,17 @@ class GLayer(nn.Module):
 		self.x_cU = x_c @ U
 		self.change = x_c - x_mu - (self.x_cU - self.x_muU)@U.T
 
+		# TESTING VAR: to use cross terms of second fundamental form
+		# NOTE: ALSO NEED TO CHANGE IN cc.py IF CHANGING
+		self.use_cross_terms = True
+
 		
 	def forward(self, Z):
 		# Z: tensor of shape N x D, a batch of N points in D dimensions
 		# that we want to flatten by 1 step
 
 		# returns: tensor of shape N x D
+		N = Z.shape[0]
 
 		ZU = Z@self.U
 		Z_norm2 = (Z-self.x_mu).pow(2).sum(dim=1, keepdim=True)
@@ -67,8 +72,17 @@ class GLayer(nn.Module):
 		kernel = kernel_inv(Z_norm2, ZU_norm2, self.gamma, self.alpha)
 		# self.kernel = kernel
 
+
 		coord = ZU - self.x_cU
-		Xhat = Z + kernel*(self.change + (coord.pow(2))@(self.V).T)
+		if self.use_cross_terms:
+			H_input = torch.bmm(coord.reshape((N,self.k,1)), coord.reshape((N,1,self.k)))
+			idx_triu = torch.triu_indices(self.k,self.k)
+			H_input = H_input[:,idx_triu[0,:],idx_triu[1,:]]
+
+		else:
+			H_input = coord.pow(2)
+		
+		Xhat = Z + kernel*(self.change + (H_input)@(self.V).T)
 
 		return Xhat
 # implementation of secant method. converge once step size of all

@@ -169,6 +169,11 @@ def cc(X):
 
 def opt_UV(Z, z_c, U_0, n_iter_inner, r=-1, kernel=-1):
 	D, d = U_0.shape
+	N = Z.shape[0]
+	# TESTING OPTION: whether or not to use cross terms of the
+	# second fundamental form for reconstruction
+	# NOTE: ALSO NEED TO CHANGE IN cc_nn.py IF CHANGING
+	use_cross_terms = True
 
 	# initialize geoopt manifold object
 	stiefel = geoopt.manifolds.Stiefel()
@@ -194,44 +199,49 @@ def opt_UV(Z, z_c, U_0, n_iter_inner, r=-1, kernel=-1):
 		kernel = torch.exp(-gamma*(Z - z_mu).pow(2).sum(dim=1, keepdim=True))
 	
 
-	# function to minimize
-	# def loss_fn():
-	# 	opt_U.zero_grad()
-	# 	# opt_V.zero_grad()
-	# 	# opt_alpha.zero_grad()
-	# 	coord = (Z - z_c) @ U
-	# 	Z_perp = (Z - z_c) - coord @ U.T
-	# 	coord2 = coord.pow(2)
-	# 	A = coord2 * kernel
-	# 	b = Z_perp * kernel
-
-	# 	# least squares solution for V, note automatically orthogonal to U
-	# 	with torch.no_grad():
-	# 		V = ((A.T@A).inverse() @ (A.T@b)).T
-
-	# 	loss = 0.5*(kernel*(Z_perp - coord2@V.T)).pow(2).mean()
-	# 	# loss = (U).pow(2).mean()
-	# 	loss.backward()
-
-	# 	return loss.item()
-
-	# optimize U
 	for i in range(n_iter_inner):
 		U_old = U.data.clone()
 		opt_U.zero_grad()
 		# opt_V.zero_grad()
 		# opt_alpha.zero_grad()
+
 		coord = (Z - z_c) @ U
 		Z_perp = (Z - z_c) - coord @ U.T
-		coord2 = coord.pow(2)
-		A = coord2 * kernel
-		b = Z_perp * kernel
 
-		# least squares solution for V, note automatically orthogonal to U
-		with torch.no_grad():
-			V = ((A.T@A).inverse() @ (A.T@b)).T
+		if not use_cross_terms:
+			
+			coord2 = coord.pow(2)
+			A = coord2 * kernel
+			b = Z_perp * kernel
 
-		loss = 0.5*(kernel*(Z_perp - coord2@V.T)).pow(2).mean()
+			# least squares solution for V, note automatically orthogonal to U
+			with torch.no_grad():
+				V = ((A.T@A).inverse() @ (A.T@b)).T
+
+			loss = 0.5*(kernel*(Z_perp - coord2@V.T)).pow(2).mean()
+
+		else:
+			# input coordinates for the exponential map hessian (second
+			# fundamental form)
+
+			# output is a tensor of shape (N,d,d)
+			H_input = torch.bmm(coord.reshape((N,d,1)), coord.reshape((N,1,d)))
+			# since tensor is symmetric, we only need to keep upper diag terms
+			# output is a tensor of shape (N, d(d+1)/2)
+			idx_triu = torch.triu_indices(d,d)
+			H_input = H_input[:,idx_triu[0,:],idx_triu[1,:]]
+
+			# construct A, b matrices for least squares
+			A = H_input * kernel
+			b = Z_perp * kernel
+
+			# least squares solution for V, note automatically orthogonal to U
+			# output is of shape (D, d(d+1)/2)
+			with torch.no_grad():
+				V = ((A.T@A).inverse() @ (A.T@b)).T
+
+			loss = 0.5*(kernel*(Z_perp - H_input@V.T)).pow(2).mean()
+
 		# loss = (U).pow(2).mean()
 		loss.backward()
 
@@ -253,8 +263,7 @@ def opt_UV(Z, z_c, U_0, n_iter_inner, r=-1, kernel=-1):
 				break
 	# if i >= n_iter_inner - 1:
 	# 	print('Warning: U did not converge')		
-	loss_final = 0.5*(kernel*(Z_perp - coord2@V.T)).pow(2).mean()
-	return U.detach().data, V.detach().data, loss_final.detach()
+	return U.detach().data, V.detach().data, loss.detach()
 
 def find_d(Z, z_c, r_dimcheck, n_iter_inner):
 	# We find the minimial d by iteratively fitting a model
@@ -281,12 +290,13 @@ def find_d(Z, z_c, r_dimcheck, n_iter_inner):
 		U, V, loss = opt_UV(Z, z_c, U_0, n_iter_inner, kernel=kernel)
 
 		# compute max error, if too large, increase d
-		coord = (Z - z_c) @ U
-		Z_perp = (Z - z_c) - coord @ U.T
-		coord2 = coord.pow(2)
-		max_error = (kernel*(Z_perp - coord2@V.T)).norm(dim=1).max()
-		# print(f'current max error: {max_error}')
-		# print(f'max error thredhold: {max_error_ratio*r_dimcheck}')
+		# coord = (Z - z_c) @ U
+		# Z_perp = (Z - z_c) - coord @ U.T
+		# coord2 = coord.pow(2)
+		# max_error = (kernel*(Z_perp - coord2@V.T)).norm(dim=1).max()
+
+		# just use the computed error
+		max_error = loss
 		if max_error >= max_error_ratio*r_dimcheck:
 			# add new vec , orthogonalize via gram schmidt
 			U_new = torch.randn(D, 1)
