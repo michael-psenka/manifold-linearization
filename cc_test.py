@@ -16,8 +16,6 @@ from tools.manifold_generator import Manifold
 import dataclasses
 import dcargs
 
-import cProfile
-
 ##### COMMAND LINE ARGUMENTS #####
 # run cc_test.py --help to get help text
 # for each argument below, underscores become dashes
@@ -165,7 +163,7 @@ if __name__ == "__main__":
 	# center and scale data. not explicitly needed for cc, but helps numerically
 	X_mean = torch.mean(X, dim=0)
 	X = X - X_mean
-	X_norm = torch.norm(X)/np.sqrt(N*D) #expeded norm of gaussian is sqrt(D)
+	X_norm = X.pow(2).mean().sqrt() #expeded norm of gaussian is sqrt(D)
 	X = X / X_norm
 
 	if args.model == 'cc':
@@ -189,28 +187,34 @@ if __name__ == "__main__":
 	# for i in range(200):
 	# 	Z_new[i,:] = Z_0 + i/200*(Z_1-Z_0)
 	X_hat = g(Z)
-
-	X = X.cpu().detach().numpy()
-	Z = Z.cpu().detach().numpy()
-	X_hat = X_hat.cpu().detach().numpy()
 	# X_hat = g(Z_new)
 	# plot the results if possible
 	if D == 2:
-		plt.scatter(X[:, 0], X[:,1], c='b')
-		plt.scatter(Z[:, 0], Z[:,1], c='r')
-		plt.scatter(X_hat[:, 0], X_hat[:,1], c='g')
+		X_np = X.cpu().detach().numpy()
+		Z_np = Z.cpu().detach().numpy()
+		X_hat_np = X_hat.cpu().detach().numpy()
+
+		plt.scatter(X_np[:, 0], X_np[:,1], c='b')
+		plt.scatter(Z_np[:, 0], Z_np[:,1], c='r')
+		plt.scatter(X_hat_np[:, 0], X_hat_np[:,1], c='g')
 		plt.legend(['X', 'Z', 'Xhat'])
 		plt.title(f'Linearization performance of {args.model} on {args.dataset}')
 		plt.show()
 
 	elif D == 3:
+		X_np = X.cpu().detach().numpy()
+		Z_np = Z.cpu().detach().numpy()
+		X_hat_np = X_hat.cpu().detach().numpy()
+
 		fig = plt.figure()
 		ax = fig.add_subplot(111, projection='3d')
-		ax.scatter(X[:, 0], X[:,1], X[:,2], c='b')
-		ax.scatter(Z[:, 0], Z[:,1], Z[:,2], c='r')
-		ax.scatter(X_hat[:, 0], X_hat[:,1], X_hat[:,2], c='c')
+		ax.scatter(X_np[:, 0], X_np[:,1], X_np[:,2], c='b')
+		ax.scatter(Z_np[:, 0], Z_np[:,1], Z_np[:,2], c='r')
+		ax.scatter(X_hat_np[:, 0], X_hat_np[:,1], X_hat_np[:,2], c='c')
 		ax.legend(['X', 'Z', 'Xhat'])
 		ax.set_title(f'Linearization performance of {args.model} on {args.dataset}')
 		plt.show()
 	else:
-		print(f'SVD of learned features: {torch.svd(Z - Z.mean(dim=0,keepdim=True))[1]}')
+		print(f'SVD of learned features: {torch.linalg.svd(Z - Z.mean(dim=0,keepdim=True))[1]}')
+		print(f'Average reconstruction error: {(X-X_hat).pow(2).mean().sqrt()}')
+		print(f'Maximum reconstruction error: {(X-X_hat).norm(dim=1).max() / np.sqrt(D)}')
