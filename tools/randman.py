@@ -4,13 +4,9 @@ Instilling Complex Function in Spiking Neural Networks. Neural Computation 1–2
 '''
 
 import numpy as np
-import pickle
-import gzip
-import itertools
-
 import torch
 
-class Randman:
+class RandMan:
     """ Randman objects hold the parameters for a smooth random manifold from which datapoints can be sampled. """
     
     def __init__(self, embedding_dim, manifold_dim, alpha=2, n_basis=3, prec=1e-3, max_f_cutoff=1000, seed=None, dtype=torch.float32, device=None):
@@ -83,4 +79,3 @@ class Randman:
         x = torch.rand(N, self.d, dtype=self.dtype,device=self.device)
         y = self.eval_manifold(x)
         return y
-
