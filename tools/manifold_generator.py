@@ -10,7 +10,7 @@ Zenke, F., and Vogels, T.P. (2021). The Remarkable Robustness of Surrogate Gradi
 Instilling Complex Function in Spiking Neural Networks. Neural Computation 1–27.
 '''
 class Manifold:
-  def __init__(self, D, d, curvature=2, n_basis=5):
+  def __init__(self, D, d, curvature=1, n_basis=5):
     self.D = D
     self.d = d
     self.curvature = curvature
