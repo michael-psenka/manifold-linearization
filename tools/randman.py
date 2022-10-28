@@ -9,7 +9,7 @@ import torch
 class RandMan:
     """ Randman objects hold the parameters for a smooth random manifold from which datapoints can be sampled. """
     
-    def __init__(self, embedding_dim, manifold_dim, alpha=2, n_basis=3, prec=1e-3, max_f_cutoff=1000, seed=None, dtype=torch.float32, device=None):
+    def __init__(self, embedding_dim, manifold_dim, alpha=20, n_basis=3, prec=1e-3, max_f_cutoff=1000, seed=None, dtype=torch.float32, device=None):
         """ Initializes a randman object.
         
         Args
