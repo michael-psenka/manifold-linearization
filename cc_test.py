@@ -19,6 +19,7 @@ import dcargs
 
 from datetime import datetime
 import json
+import os
 
 ##### COMMAND LINE ARGUMENTS #####
 # run cc_test.py --help to get help text
@@ -153,7 +154,6 @@ if __name__ == "__main__":
 		N = args.N
 		D = args.D
 		manifold = Manifold(D, args.d)
-		# man = RandMan(D, args.d)
 
 		X = manifold.generateSample(N)
 		print(f'X shape : {X.shape}')
@@ -195,13 +195,16 @@ if __name__ == "__main__":
 		if args.save_path is None:
 			time_path = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
 			args.save_path = './experiments/' + time_path
+
+		if not os.path.exists(args.save_path):
+			os.makedirs(args.save_path)
 		# convert args to dict
 		args_dict = vars(args)
 		# convert to json
 		args_json = json.dumps(args_dict, indent=4)
 		# save json file
-		with open(args.save_path + '/args.json', 'w') as f:
-			f.write(args_json)
+		with open(args.save_path + '/args.json', 'x') as file:
+			file.write(args_json)
 
 		# extract features and reconstruction
 		Z = f(X)
