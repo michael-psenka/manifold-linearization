@@ -11,10 +11,14 @@ from torchvision.datasets import CIFAR10
 import cc
 from models.vae import train_vanilla_vae, train_beta_vae, train_factor_vae
 from tools.manifold_generator import Manifold
+# from tools.randman import RandMan
 
 # magic argparser library thank you github.com/brentyi
 import dataclasses
 import dcargs
+
+from datetime import datetime
+import json
 
 ##### COMMAND LINE ARGUMENTS #####
 # run cc_test.py --help to get help text
@@ -55,6 +59,12 @@ class Args:
 	""" starting value of the "inverse neighborhood size", in the sense that:
 	# smaller values of gamma_0 correspond to larger neighborhood sizes, and vice versa """
 
+	use_gpu: bool = False # If true, use GPU for training
+
+	save: bool = True # If true, save the results of the experiment
+
+	save_path:str = None # If save is true, save the results to this path
+
 # NOTE: if adding a new dataset, add it to the list below as well as the big if statement
 # inside the main function
 datasets = {
@@ -90,7 +100,8 @@ if __name__ == "__main__":
 		exit(0)
 
 	# set default device to gpu if available
-	torch.set_default_tensor_type(torch.cuda.FloatTensor)
+	if args.use_gpu:
+		torch.set_default_tensor_type(torch.cuda.FloatTensor)
 	# Load the proper dataset
 	if args.dataset == "sine-wave":
 		N = args.N
@@ -142,18 +153,18 @@ if __name__ == "__main__":
 		N = args.N
 		D = args.D
 		manifold = Manifold(D, args.d)
-		# X = manifold.generateSample(N)
-		# coord = torch.zeros((N,args.d))
-		# coord[:,0] = torch.linspace(-1,1,N)
-		# coord[:,1] = (1 - 1e-4) + torch.linspace(-1e-4,1e-4,N)
-		# X = manifold.embedCoordinates(coord)
+		# man = RandMan(D, args.d)
+
 		X = manifold.generateSample(N)
+		print(f'X shape : {X.shape}')
 		# show manifold
 		# fig = plt.figure()
 		# ax = fig.add_subplot(111, projection='3d')
 		# # ax.scatter(X[:int(N / 2), 0], X[:int(N / 2),1], X[:int(N / 2),2], c='b')
 		# # ax.scatter(X[int(N / 2):, 0], X[int(N / 2):,1], X[int(N / 2):,2], c='r')
 		# ax.scatter(X[:, 0], X[:,1], X[:,2], c='c')
+		plt.scatter(X[:,0], X[:,1])
+		plt.show()
 
 		print(f'SVD of manifold data: {torch.svd(X - X.mean(dim=0,keepdim=True))[1]}')
 	else:
@@ -177,6 +188,30 @@ if __name__ == "__main__":
 		f, g = train_factor_vae(X)
 	else:
 		sys.exit('Invalid model. Run "python cc_test.py --get-models" for a list of possible models.')
+
+	# save experiment data
+	if args.save:
+		# save args
+		if args.save_path is None:
+			time_path = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+			args.save_path = './experiments/' + time_path
+		# convert args to dict
+		args_dict = vars(args)
+		# convert to json
+		args_json = json.dumps(args_dict, indent=4)
+		# save json file
+		with open(args.save_path + '/args.json', 'w') as f:
+			f.write(args_json)
+
+		# extract features and reconstruction
+		Z = f(X)
+		Xhat = g(Z)
+		Z = Z.detach().cpu().numpy()
+		Xhat = Xhat.detach().cpu().numpy()
+		
+
+		
+
 
 	# save features and reconstructions
 	Z = f(X)
