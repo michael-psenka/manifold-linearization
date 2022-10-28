@@ -1,3 +1,5 @@
+# local experiments folder
+experiments/
 # torch datasets
 torch-dataset/
 # directories to ignore
