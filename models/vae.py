@@ -15,10 +15,10 @@ class BetaVAE(VAE):
         self.beta: float = beta
         self.d_x: int = d_x
         self.d_z: int = d_z
-        self.encoder: torch.nn.Module = fcnn(d_x, d_latent, d_latent, n_layers - 1)
+        self.encoder: torch.nn.Module = mlp(d_x, d_latent, d_latent, n_layers - 1)
         self.fc_mu: torch.nn.Module = torch.nn.Linear(d_latent, d_z)
         self.fc_var: torch.nn.Module = torch.nn.Linear(d_latent, d_z)
-        self.decoder: torch.nn.Module = fcnn(d_z, d_x, d_latent, n_layers)
+        self.decoder: torch.nn.Module = mlp(d_z, d_x, d_latent, n_layers)
         self.lr: float = lr
         self.training_loss = []
         self.name = f"BetaVAE_beta{beta}_dx{d_x}_dz{d_z}_dl{d_latent}_l{n_layers}_lr{lr}"
@@ -67,11 +67,11 @@ class FactorVAE(pl.LightningModule):
         self.gamma: float = gamma
         self.d_x: int = d_x
         self.d_z: int = d_z
-        self.encoder: torch.nn.Module = fcnn(d_x, d_latent, d_latent, n_layers - 1)
+        self.encoder: torch.nn.Module = mlp(d_x, d_latent, d_latent, n_layers - 1)
         self.fc_mu: torch.nn.Module = torch.nn.Linear(d_latent, d_z)
         self.fc_var: torch.nn.Module = torch.nn.Linear(d_latent, d_z)
-        self.decoder: torch.nn.Module = fcnn(d_z, d_x, d_latent, n_layers)
-        self.discriminator: torch.nn.Module = fcnn(d_z, 2, d_latent, n_layers)
+        self.decoder: torch.nn.Module = mlp(d_z, d_x, d_latent, n_layers)
+        self.discriminator: torch.nn.Module = mlp(d_z, 2, d_latent, n_layers)
         self.lr: float = lr
         self.training_loss = []
         self.name = f"FactorVAE_gamma{gamma}_dx{d_x}_dz{d_z}_dl{d_latent}_l{n_layers}_lr{lr}"
