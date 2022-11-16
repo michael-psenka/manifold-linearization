@@ -13,6 +13,7 @@ import geoopt
 from modules import cc_nn
 
 from tqdm import trange
+import matplotlib.pyplot as plt
 # ****************************i*************************************************
 # This is the primary script for the curvature compression algorithm.
 # Input: data matrix X of shape (n,D), where D is the embedding dimension and
@@ -37,10 +38,10 @@ def cc(X):
 	n_stop_to_converge = 5
 	converge_counter = 0
 	# number of flattening steps to perform
-	n_iter = 300
+	n_iter = 200
 	# how many max steps for inner optimization of U, V
 	# (stopping criterion implemented)
-	n_iter_inner = 1000
+	n_iter_inner = 500
 	# threshold for reconstruction loss being good enough
 	thres_recon = 1e-4
 
@@ -82,6 +83,10 @@ def cc(X):
 	# ################ MAIN LOOP #########################
 	with trange(n_iter, unit="iters") as pbar:
 		for j in pbar:
+			# if j % 20 == 0:
+			# 	plt.scatter(Z[:,0].detach().numpy(), Z[:,1].detach().numpy())
+			# 	plt.show()
+
 			# STEP 0: stochastically choose center of the neighborhood to
 			# flatten and reconstruct
 			choice = torch.randint(N, (1,))
@@ -92,6 +97,7 @@ def cc(X):
 
 			# note d is implicitly returned, as U, V are of shape (D, d)
 			U, loss_rdimcheck = find_d(Z, z_c, r_dimcheck, n_iter_inner, d_prev)
+		
 			# STEP 2: use secant method to find maximal radius that achieves
 			# desired reconstruction loss
 

@@ -74,7 +74,8 @@ datasets = {
   "MNIST": """A single class of the MNIST dataset (in our case, the 2's). This is in spirit to the
 		\"union of manifolds\" hypothesis.""",
   "random-manifold": "A random manifold of intrinsic dimension d embedded in D dimensions",
-  "CIFAR10": "A single class of the CIFAR10 dataset (the dog class)."
+  "CIFAR10": "A single class of the CIFAR10 dataset (the dog class).",
+  "factorvae-experiment": "A pre-generated high-dim manifold generated to compare against factorvae"
 }
 
 models = {
@@ -114,7 +115,7 @@ if __name__ == "__main__":
 			X[i,0] = x_coord
 			X[i,1] = np.sin(x_coord)
 
-		# X = X + 0.1*torch.randn(X.shape)
+		X = X + 0.0*torch.randn(X.shape)
 
 	elif args.dataset == "semicircle":
 		N = args.N
@@ -167,6 +168,10 @@ if __name__ == "__main__":
 		plt.show()
 
 		print(f'SVD of manifold data: {torch.svd(X - X.mean(dim=0,keepdim=True))[1]}')
+	elif args.dataset == "factorvae-experiment":
+		X = torch.load('factorvae_experiment/X_N6000_D100_d10.pt')
+		if args.use_gpu:
+			X = X.cuda()
 	else:
 		sys.exit('Invalid dataset. Run "python cc_test.py --get-datasets" for a list of possible datasets.')
 
@@ -218,13 +223,19 @@ if __name__ == "__main__":
 
 	# save features and reconstructions
 	Z = f(X)
+
+	torch.save(Z, 'our_model_Z.pt')
 	# if you want to check interpolation, uncomment the following lines
 	# Z_0 = Z[0,:]
 	# Z_1 = Z[-1,:]
 	# Z_new = torch.zeros((200, Z.shape[1]))
 	# for i in range(200):
 	# 	Z_new[i,:] = Z_0 + i/200*(Z_1-Z_0)
-	X_hat = g(Z)
+	Z_test = torch.zeros((3000, Z.shape[1]))
+	for i in range(3000):
+		# linear interpolation between first and last elements of Z
+		Z_test[i,:] = Z[0,:] + i/3000*(Z[-1,:]-Z[0,:])
+	X_hat = g(Z_test)
 	# X_hat = g(Z_new)
 	# plot the results if possible
 	if D == 2:
@@ -232,10 +243,12 @@ if __name__ == "__main__":
 		Z_np = Z.cpu().detach().numpy()
 		X_hat_np = X_hat.cpu().detach().numpy()
 
+		# new X_hat_test
+
 		plt.scatter(X_np[:, 0], X_np[:,1], c='b')
 		plt.scatter(Z_np[:, 0], Z_np[:,1], c='r')
-		plt.scatter(X_hat_np[:, 0], X_hat_np[:,1], c='g')
-		plt.legend(['X', 'Z', 'Xhat'])
+		plt.plot(X_hat_np[:, 0], X_hat_np[:,1], c='g')
+		plt.legend(['X_train', 'Z_train', 'Xhat_test'])
 		plt.title(f'Linearization performance of {args.model} on {args.dataset}')
 		plt.show()
 
