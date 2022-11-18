@@ -14,6 +14,7 @@ from modules import cc_nn
 
 from tqdm import trange
 import matplotlib.pyplot as plt
+
 # ****************************i*************************************************
 # This is the primary script for the curvature compression algorithm.
 # Input: data matrix X of shape (n,D), where D is the embedding dimension and
@@ -26,8 +27,8 @@ import matplotlib.pyplot as plt
 # gamma_0 is the starting value of the "inverse neighborhood size"
 # --- (the smaller gamma_0 is, the larger the neighborhood size is)
 
-
 def cc(X):
+
 	N, D = X.shape
 	# needed for dist-to-gamma conversion
 	log2 = float(np.log(2))
@@ -38,7 +39,7 @@ def cc(X):
 	n_stop_to_converge = 5
 	converge_counter = 0
 	# number of flattening steps to perform
-	n_iter = 200
+	n_iter = 300
 	# how many max steps for inner optimization of U, V
 	# (stopping criterion implemented)
 	n_iter_inner = 500
@@ -174,6 +175,8 @@ def cc(X):
 				d_prev = U.shape[1]
 				# only update representation if we add the layer
 				Z = Z_new.clone()
+				if j % 20 == 0:
+					torch.save(Z, f'our_model/our_model_Z_{j}.pt')
 
 			
 			# with torch.no_grad():
