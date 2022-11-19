@@ -88,6 +88,7 @@ models = {
 	"factorvae": "Factorizing Variational Autoencoders with gamma = 30",
 }
 
+
 if __name__ == "__main__":
 
 	# parse command line arguments
