@@ -74,6 +74,7 @@ class Args:
 datasets = {
   "sine-wave": "The graph of a single period sine wave embedded in 2D",
   "semicircle": "A semicircle of 1.5pi radians embedded in 2D",
+  "swissroll": "A 2d swiss roll embedded in 3D",
   "MNIST": """A single class of the MNIST dataset (in our case, the 2's). This is in spirit to the
 		\"union of manifolds\" hypothesis.""",
   "random-manifold": "A random manifold of intrinsic dimension d embedded in D dimensions",
