@@ -3,6 +3,7 @@ import sys
 # %matplotlib widget
 import matplotlib.pyplot as plt
 import numpy as np
+import sklearn.datasets
 import torch
 
 from torchvision.datasets import MNIST
@@ -55,6 +56,8 @@ class Args:
 	D: int = 2 # the embedding dimension of the manifold (for random-manifold generation)
 
 	d: int = 1 # the intrinsic dimension of the manifold (for random-manifold generation)
+
+	sigma: float = 0.0  # the stdev of noise of swiss roll dataset
 
 	gamma_0: float = 1
 	""" starting value of the "inverse neighborhood size", in the sense that:
@@ -126,6 +129,12 @@ if __name__ == "__main__":
 			theta_coord = i / N*1.5*torch.pi
 			X[i,0] = np.cos(theta_coord)
 			X[i,1] = np.sin(theta_coord)
+
+	elif args.dataset == "swissroll":
+		N = args.N
+		D = 3
+		X, t = sklearn.datasets.make_swiss_roll(N, args.sigma)[0]
+		X = torch.from_numpy(X)
 
 	elif args.dataset == "MNIST":
 		dataset = MNIST(root='./torch-dataset', train=True,

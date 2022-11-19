@@ -2,7 +2,7 @@ import torch
 from models.umap.umap import UMAP
 
 
-def train_umap(X: torch.Tensor, dz: int):
+def train_umap(X: torch.Tensor, dz: int = 0):
     u = UMAP(n_components=dz)
     X_np = X.detach().cpu().numpy()
     u.fit(X_np)
