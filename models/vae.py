@@ -157,10 +157,13 @@ class FactorVAE(pl.LightningModule):
 
 
 
-def train_vanilla_vae(X: torch.Tensor, num_epochs: int = 100, batch_size: int = 32):
+def train_vanilla_vae(X: torch.Tensor, d_z: int = 0, d_latent: int = 0, n_layers: int = 5,
+                      lr: float = 1e-3, num_epochs: int = 100, batch_size: int = 32):
+    d_z = d_z or X.shape[1]
+    d_latent = d_latent or d_z
     trainer = pl.Trainer(max_epochs=num_epochs)
     dataloader = torch.utils.data.DataLoader(X, batch_size, drop_last=False)
-    model = BetaVAE(beta=1.0, d_x=X.shape[1], d_z=X.shape[1], d_latent=X.shape[1], n_layers=5, lr=1e-3)
+    model = BetaVAE(beta=1.0, d_x=X.shape[1], d_z=d_z, d_latent=d_latent, n_layers=n_layers, lr=lr)
     trainer.fit(model, train_dataloaders=dataloader)
 
     def vae_encoding(x):
@@ -176,10 +179,13 @@ def train_vanilla_vae(X: torch.Tensor, num_epochs: int = 100, batch_size: int = 
     return vae_encoding, vae_decoding
 
 
-def train_beta_vae(X: torch.Tensor, num_epochs: int = 100, batch_size: int = 32):
+def train_beta_vae(X: torch.Tensor, beta: float = 4.0, d_z: int = 0, d_latent: int = 0, n_layers: int = 5,
+                   lr: float = 1e-3, num_epochs: int = 100, batch_size: int = 32):
+    d_z = d_z or X.shape[1]
+    d_latent = d_latent or d_z
     trainer = pl.Trainer(max_epochs=num_epochs)
     dataloader = torch.utils.data.DataLoader(X, batch_size, drop_last=False)
-    model = BetaVAE(beta=4.0, d_x=X.shape[1], d_z=X.shape[1], d_latent=X.shape[1], n_layers=5, lr=1e-3)
+    model = BetaVAE(beta=beta, d_x=X.shape[1], d_z=d_z, d_latent=d_latent, n_layers=n_layers, lr=lr)
     trainer.fit(model, train_dataloaders=dataloader)
 
     def vae_encoding(x):
@@ -195,11 +201,13 @@ def train_beta_vae(X: torch.Tensor, num_epochs: int = 100, batch_size: int = 32)
     return vae_encoding, vae_decoding
 
 
-def train_factor_vae(X: torch.Tensor, num_epochs: int = 100, batch_size: int = 32):
+def train_factor_vae(X: torch.Tensor, gamma: float = 30.0, d_z: int = 0, d_latent: int = 0, n_layers: int = 5,
+                   lr: float = 1e-3, num_epochs: int = 100, batch_size: int = 32):
+    d_z = d_z or X.shape[1]
+    d_latent = d_latent or d_z
     trainer = pl.Trainer(max_epochs=num_epochs)
-    #trainer = pl.Trainer(fast_dev_run=True)
     dataloader = torch.utils.data.DataLoader(X, batch_size, drop_last=False)
-    model = FactorVAE(gamma=30, d_x=X.shape[1], d_z=X.shape[1], d_latent=X.shape[1], n_layers=5, lr=1e-3)
+    model = FactorVAE(gamma=gamma, d_x=X.shape[1], d_z=d_z, d_latent=d_latent, n_layers=n_layers, lr=lr)
     trainer.fit(model, train_dataloaders=dataloader)
 
     def vae_encoding(x):

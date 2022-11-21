@@ -3,6 +3,7 @@ import sys
 # %matplotlib widget
 import matplotlib.pyplot as plt
 import numpy as np
+import sklearn.datasets
 import torch
 
 from torchvision.datasets import MNIST
@@ -57,6 +58,8 @@ class Args:
 
 	d: int = 1 # the intrinsic dimension of the manifold (for random-manifold generation)
 
+	sigma: float = 0.0  # the stdev of noise of swiss roll dataset
+
 	gamma_0: float = 1
 	""" starting value of the "inverse neighborhood size", in the sense that:
 	# smaller values of gamma_0 correspond to larger neighborhood sizes, and vice versa """
@@ -72,6 +75,7 @@ class Args:
 datasets = {
   "sine-wave": "The graph of a single period sine wave embedded in 2D",
   "semicircle": "A semicircle of 1.5pi radians embedded in 2D",
+  "swissroll": "A 2d swiss roll embedded in 3D",
   "MNIST": """A single class of the MNIST dataset (in our case, the 2's). This is in spirit to the
 		\"union of manifolds\" hypothesis.""",
   "random-manifold": "A random manifold of intrinsic dimension d embedded in D dimensions",
@@ -128,6 +132,12 @@ if __name__ == "__main__":
 			theta_coord = i / N*1.5*torch.pi
 			X[i,0] = np.cos(theta_coord)
 			X[i,1] = np.sin(theta_coord)
+
+	elif args.dataset == "swissroll":
+		N = args.N
+		D = 3
+		X, t = sklearn.datasets.make_swiss_roll(N, args.sigma)[0]
+		X = torch.from_numpy(X)
 
 	elif args.dataset == "MNIST":
 		transform = transforms.Compose([
