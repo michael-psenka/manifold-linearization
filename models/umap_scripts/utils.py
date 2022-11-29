@@ -168,7 +168,7 @@ def csr_unique(matrix, return_index=True, return_inverse=True, return_counts=Tru
 
 def disconnected_vertices(model):
     """
-    Returns a boolean vector indicating which vertices are disconnected from the umap graph.
+    Returns a boolean vector indicating which vertices are disconnected from the umap_scripts graph.
     These vertices will often be scattered across the space and make it difficult to focus on the main
     manifold.  They can either be filtered and have UMAP re-run or simply filtered from the interactive plotting tool
     via the subset_points parameter.
@@ -214,7 +214,7 @@ def average_nn_distance(dist_matrix):
     if any(np.isnan(averages)):
         warn(
             "Embedding contains disconnected vertices which will be ignored."
-            "Use umap.utils.disconnected_vertices() to identify them."
+            "Use umap_scripts.utils.disconnected_vertices() to identify them."
         )
 
     return averages
