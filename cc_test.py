@@ -8,6 +8,7 @@ import torch
 
 from torchvision.datasets import MNIST
 from torchvision.datasets import CIFAR10
+from torchvision import transforms
 
 import cc
 from models.vae import train_vanilla_vae, train_beta_vae, train_factor_vae
@@ -139,8 +140,13 @@ if __name__ == "__main__":
 		X = torch.from_numpy(X)
 
 	elif args.dataset == "MNIST":
+		transform = transforms.Compose([
+			# you can add other transformations in this list
+			transforms.ToTensor()
+		])
+		
 		dataset = MNIST(root='./torch-dataset', train=True,
-								download=True)
+								download=True,  transform=transform)
 
 		# load dataset into pytorch
 		data_loader = torch.utils.data.DataLoader(dataset, batch_size=600000)
@@ -148,9 +154,23 @@ if __name__ == "__main__":
 		data = data.cuda()
 
 		# select single class of dataset
-		X = data[labels==2]
-		X = X.reshape((5958,32**2))
-		X = X.T
+		X_data = data[labels==2]
+		X_f = torch.fft.fft2(X_data)
+
+		X_f_real_flat = X_f.real.reshape(X_f.shape[0], -1)
+		X_f_imag_flat = X_f.imag.reshape(X_f.shape[0], -1)
+		Z = torch.cat([X_f_real_flat, X_f_imag_flat], dim=1)
+
+		Z_mean = Z.mean(dim=0, keepdim=True)
+
+		U, S, Vt = torch.linalg.svd(Z - Z_mean, full_matrices=False)
+		V = Vt.T
+		# num_nonzero = S[S > 1000].numel()
+		num_nonzero = 100
+
+		Z_c = (Z - Z_mean)@V[:,:num_nonzero]
+		X = Z_c
+
 	elif args.dataset == "CIFAR10":
 		dataset = CIFAR10(root='./torch-dataset', train=True,
 								download=True)
