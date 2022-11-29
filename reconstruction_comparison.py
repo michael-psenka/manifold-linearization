@@ -65,7 +65,7 @@ for d in range(d_init, d_max+1, d_skip):
     fvae_recon_mean.append(mean(fvae_recon))
     fvae_recon_std.append(stdev(fvae_recon))
 
-plt.title("$\mathbb{E}[\|x - \hat{x}\|_{2}^{2}]$")
+plt.title("$\mathbb{E}[\|x - \hat{x}\|_{2}^{2}]$, $D = " + str(D) + "$")
 plt.xlabel("$d$")
 plt.plot(d_list, cc_recon_mean, label="CCNet", color="C0")
 plt.plot(d_list, vae_recon_mean, label="VAE", color="C1")

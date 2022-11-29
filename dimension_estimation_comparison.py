@@ -53,7 +53,7 @@ for d in range(d_init, d_max+1, d_skip):
     tnn_id_mean.append(mean(tnn_id))
     tnn_id_std.append(stdev(tnn_id))
 
-plt.title("Estimated intrinsic dimension of data.")
+plt.title(f"Estimated intrinsic dimension of data, $D = {D}$.")
 plt.xlabel("$d$")
 plt.plot(d_list, cc_id_mean, label="CCNet", color="C0")
 plt.plot(d_list, mle_id_mean, label="MLE", color="C1")
