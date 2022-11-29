@@ -28,18 +28,18 @@ from scipy.sparse import tril as sparse_tril, triu as sparse_triu
 import scipy.sparse.csgraph
 import numba
 
-import models.umap.distances as dist
+import models.umap_scripts.distances as dist
 
-import models.umap.sparse as sparse
+import models.umap_scripts.sparse as sparse
 
-from models.umap.utils import (
+from models.umap_scripts.utils import (
     submatrix,
     ts,
     csr_unique,
     fast_knn_indices,
 )
-from models.umap.spectral import spectral_layout
-from models.umap.layouts import (
+from models.umap_scripts.spectral import spectral_layout
+from models.umap_scripts.layouts import (
     optimize_layout_euclidean,
     optimize_layout_generic,
     optimize_layout_inverse,
@@ -127,7 +127,7 @@ def raise_disconnected_warning(
             f"A few of your vertices were disconnected from the manifold.  This shouldn't cause problems.\n"
             f"Disconnection_distance = {disconnection_distance} has removed {edges_removed} edges.\n"
             f"It has only fully disconnected {vertices_disconnected} vertices.\n"
-            f"Use umap.utils.disconnected_vertices() to identify them.",
+            f"Use umap_scripts.utils.disconnected_vertices() to identify them.",
         )
     elif vertices_disconnected > threshold * total_rows:
         warn(
@@ -135,7 +135,7 @@ def raise_disconnected_warning(
             f"Disconnection_distance = {disconnection_distance} has removed {edges_removed} edges.\n"
             f"It has fully disconnected {vertices_disconnected} vertices.\n"
             f"You might consider using find_disconnected_points() to find and remove these points from your data.\n"
-            f"Use umap.utils.disconnected_vertices() to identify them.",
+            f"Use umap_scripts.utils.disconnected_vertices() to identify them.",
         )
 
 
@@ -2473,7 +2473,7 @@ class UMAP(BaseEstimator):
                 self.verbose,
                 self.densmap or self.output_dens,
             )
-            # Report the number of vertices with degree 0 in our our umap.graph_
+            # Report the number of vertices with degree 0 in our our umap_scripts.graph_
             # This ensures that they were properly disconnected.
             vertices_disconnected = np.sum(
                 np.array(self.graph_.sum(axis=1)).flatten() == 0
@@ -2541,7 +2541,7 @@ class UMAP(BaseEstimator):
                 self.verbose,
                 self.densmap or self.output_dens,
             )
-            # Report the number of vertices with degree 0 in our umap.graph_
+            # Report the number of vertices with degree 0 in our umap_scripts.graph_
             # This ensures that they were properly disconnected.
             vertices_disconnected = np.sum(
                 np.array(self.graph_.sum(axis=1)).flatten() == 0
@@ -2610,7 +2610,7 @@ class UMAP(BaseEstimator):
                 self.verbose,
                 self.densmap or self.output_dens,
             )
-            # Report the number of vertices with degree 0 in our umap.graph_
+            # Report the number of vertices with degree 0 in our umap_scripts.graph_
             # This ensures that they were properly disconnected.
             vertices_disconnected = np.sum(
                 np.array(self.graph_.sum(axis=1)).flatten() == 0

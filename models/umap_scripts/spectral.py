@@ -9,8 +9,8 @@ from sklearn.manifold import SpectralEmbedding
 from sklearn.metrics import pairwise_distances
 from sklearn.metrics.pairwise import _VALID_METRICS as SKLEARN_PAIRWISE_VALID_METRICS
 
-from models.umap.distances import pairwise_special_metric, SPECIAL_METRICS
-from models.umap.sparse import SPARSE_SPECIAL_METRICS, sparse_named_distances
+from models.umap_scripts.distances import pairwise_special_metric, SPECIAL_METRICS
+from models.umap_scripts.sparse import SPARSE_SPECIAL_METRICS, sparse_named_distances
 
 
 def component_layout(

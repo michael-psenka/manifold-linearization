@@ -1,7 +1,7 @@
 import numpy as np
 import numba
-import models.umap.distances as dist
-from models.umap.utils import tau_rand_int
+import models.umap_scripts.distances as dist
+from models.umap_scripts.utils import tau_rand_int
 from tqdm.auto import tqdm
 
 

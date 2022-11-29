@@ -9,7 +9,7 @@ import locale
 import numba
 import numpy as np
 
-from models.umap.utils import norm
+from models.umap_scripts.utils import norm
 
 locale.setlocale(locale.LC_NUMERIC, "C")
 
