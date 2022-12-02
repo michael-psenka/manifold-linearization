@@ -39,7 +39,7 @@ def cc(X):
 	n_stop_to_converge = 5
 	converge_counter = 0
 	# number of flattening steps to perform
-	n_iter = 220
+	n_iter = 150
 	# how many max steps for inner optimization of U, V
 	# (stopping criterion implemented)
 	n_iter_inner = 500
@@ -61,7 +61,7 @@ def cc(X):
 	# minimum allowed radius for each flattening
 	# want this to be relatively larger to converge to flat
 	# representation faster
-	r_min = 0.25* edm_max
+	r_min = 0.2* edm_max
 	# maximum allowed radius for each flattening
 	r_max = 1.1 * edm_max
 	# 2nd radius to check for secant optimization
