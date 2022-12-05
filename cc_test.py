@@ -136,7 +136,7 @@ if __name__ == "__main__":
 	elif args.dataset == "swissroll":
 		N = args.N
 		D = 3
-		X, t = sklearn.datasets.make_swiss_roll(N, args.sigma)[0]
+		X, t = sklearn.datasets.make_swiss_roll(N, noise=args.sigma)
 		X = torch.from_numpy(X)
 
 	elif args.dataset == "MNIST":
@@ -206,6 +206,11 @@ if __name__ == "__main__":
 	else:
 		sys.exit('Invalid dataset. Run "python cc_test.py --get-datasets" for a list of possible datasets.')
 
+	# make sure data is float
+	X = X.float()
+	# if desired, make sure X is on gpu
+	if args.use_gpu:
+		X = X.cuda()
 
 	# center and scale data. not explicitly needed for cc, but helps numerically
 	X_mean = torch.mean(X, dim=0)
@@ -255,19 +260,20 @@ if __name__ == "__main__":
 	# save features and reconstructions
 	Z = f(X)
 
-	torch.save(Z, 'our_model_Z.pt')
+	# torch.save(Z, 'our_model_Z.pt')
 	# if you want to check interpolation, uncomment the following lines
 	# Z_0 = Z[0,:]
 	# Z_1 = Z[-1,:]
 	# Z_new = torch.zeros((200, Z.shape[1]))
 	# for i in range(200):
 	# 	Z_new[i,:] = Z_0 + i/200*(Z_1-Z_0)
-	Z_test = torch.zeros((3000, Z.shape[1]))
-	for i in range(3000):
-		# linear interpolation between first and last elements of Z
-		Z_test[i,:] = Z[0,:] + i/3000*(Z[-1,:]-Z[0,:])
-	X_hat = g(Z_test)
+	# Z_test = torch.zeros((3000, Z.shape[1]))
+	# for i in range(3000):
+	# 	# linear interpolation between first and last elements of Z
+	# 	Z_test[i,:] = Z[0,:] + i/3000*(Z[-1,:]-Z[0,:])
+	# X_hat = g(Z_test)
 	# X_hat = g(Z_new)
+	X_hat = g(Z)
 	# plot the results if possible
 	if D == 2:
 		X_np = X.cpu().detach().numpy()
