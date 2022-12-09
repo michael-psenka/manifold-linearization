@@ -14,9 +14,9 @@ N_trials = 3
 
 N = 2000
 D = 100
-d_init = 4
+d_init = 5
 d_max = 20
-d_skip = 4
+d_skip = 5
 
 d_list = []
 cc_recon_mean = []

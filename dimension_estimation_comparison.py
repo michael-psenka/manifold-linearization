@@ -1,4 +1,4 @@
-from statistics import mean, stdev
+from statistics import mean, stdev, mode
 import torch
 from models.vae import train_vanilla_vae, train_beta_vae, train_factor_vae
 from tools.gp_manifold_generator import sample_points
@@ -7,21 +7,17 @@ import matplotlib.pyplot as plt
 import skdim
 
 
-def cc_dim_estimation(X, F, eps = 0.01):
-    N, D = X.shape
-    svals = torch.linalg.svdvals(F(X))
-    for i in range(min(N, D) - 1):
-        if svals[i + 1] / svals[i] < eps:
-            return i + 1
-    return min(N, D)
+def cc_dim_estimation(F):
+    return mode([layer.k for layer in F.network])
+
 
 N_trials = 3
 
 N = 2000
 D = 100
-d_init = 4
+d_init = 5
 d_max = 20
-d_skip = 4
+d_skip = 5
 
 d_list = []
 cc_id_mean = []
@@ -40,7 +36,7 @@ for d in range(d_init, d_max+1, d_skip):
         X, _, _ = sample_points(N, D, d, [1.0 for _ in range(D)])
 
         F, G = cc(X)
-        cc_id.append(cc_dim_estimation(X, F))
+        cc_id.append(cc_dim_estimation(F))
         X = X.detach().numpy()
 
         mle_id.append(skdim.id.MLE().fit_transform(X))
@@ -70,6 +66,7 @@ plt.fill_between(d_list,
                  [tnn_id_mean[i] - tnn_id_std[i] for i in range(len(tnn_id_mean))],
                  [tnn_id_mean[i] + tnn_id_std[i] for i in range(len(tnn_id_mean))],
                  color="C2", alpha=0.1)
+plt.plot([d_init, d_max], [d_init, d_max], color="C3", linestyle="dashed", label="true $d$")
 plt.legend()
 plt.savefig("id_estimation_comparison.jpg")
 plt.close()
