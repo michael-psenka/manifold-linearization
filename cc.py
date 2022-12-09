@@ -39,10 +39,10 @@ def cc(X):
 	n_stop_to_converge = 5
 	converge_counter = 0
 	# number of flattening steps to perform
-	n_iter = 150
+	n_iter = 100
 	# how many max steps for inner optimization of U, V
 	# (stopping criterion implemented)
-	n_iter_inner = 500
+	n_iter_inner = 1000
 	# threshold for reconstruction loss being good enough
 	thres_recon = 1e-4
 
@@ -57,11 +57,11 @@ def cc(X):
 	# radius for checking dimension. Should be as small as possible,
 	# but big enough that at every point there's at least one sample
 	# along every intrinsic dimension
-	r_dimcheck = 0.2 * edm_max
+	r_dimcheck = 0.1 * edm_max
 	# minimum allowed radius for each flattening
 	# want this to be relatively larger to converge to flat
 	# representation faster
-	r_min = 0.2* edm_max
+	r_min = 0.1* edm_max
 	# maximum allowed radius for each flattening
 	r_max = 1.1 * edm_max
 	# 2nd radius to check for secant optimization
