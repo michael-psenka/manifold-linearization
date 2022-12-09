@@ -16,17 +16,24 @@ def distance_metric_ratio(X, P, F, eps = 1e-12):
 
 def generate_plot(X, filename):
     results_filename = f"edm_experiment/{filename}.png"
-    heatmap = plt.pcolor(x, shading = 'auto', vmin = 0, vmax=1, cmap='Greys')
+    X_np = X.detach().numpy()
+    heatmap = plt.pcolor(X_np, shading = 'auto', vmin = 0, vmax=1, cmap='Greys')
     plt.colorbar(orientation='vertical')
     plt.savefig(results_filename)
+    plt.clf()
 
 
-N = 6000
+N = 3000
 D = 100
-d = 10
+d = 4
 stopping_time = [40, 60, 80, 100, 120]
 
 X, P, _ = sample_points(N, D, d, [1.0 for _ in range(D)])
+
+print('generated manifold')
+
+
+
 cc_F, cc_G = cc(X)
 cc_edm = distance_metric_ratio(X, P, cc_F)
 
