@@ -39,7 +39,7 @@ def cc(X):
 	n_stop_to_converge = 5
 	converge_counter = 0
 	# number of flattening steps to perform
-	n_iter = 100
+	n_iter = 500
 	# how many max steps for inner optimization of U, V
 	# (stopping criterion implemented)
 	n_iter_inner = 1000
