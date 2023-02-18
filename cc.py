@@ -140,7 +140,10 @@ def cc(X,
                     break
 
             # STEP 3: line search for biggest alpha that gets us to desired fidelity
-            alpha = float(min(alpha_max, np.sqrt(thres_recon / loss_r.item())))
+            if loss_r.item() == 0.0:
+                alpha = float(alpha_max)
+            else:
+                alpha = float(min(alpha_max, np.sqrt(thres_recon / loss_r.item())))
             # STEP 4: add layer to network
             Z = Z.detach()
             U = U.detach().clone()
