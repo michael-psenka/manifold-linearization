@@ -76,6 +76,7 @@ datasets = {
   "sine-wave": "The graph of a single period sine wave embedded in 2D",
   "semicircle": "A semicircle of 1.5pi radians embedded in 2D",
   "swissroll": "A 2d swiss roll embedded in 3D",
+  "squares": "A simple vision dataset with several translations of squares in 2D",
   "MNIST": """A single class of the MNIST dataset (in our case, the 2's). This is in spirit to the
 		\"union of manifolds\" hypothesis.""",
   "random-manifold": "A random manifold of intrinsic dimension d embedded in D dimensions",
@@ -138,6 +139,39 @@ if __name__ == "__main__":
 		D = 3
 		X, t = sklearn.datasets.make_swiss_roll(N, noise=args.sigma)
 		X = torch.from_numpy(X)
+
+	elif args.dataset == "squares":
+		N = args.N
+		H = 20
+		W = 20
+		D = H * W
+		hb = 10
+		wb = 10
+		ht = torch.randint(low=0, high=H-hb, size=(N,))
+		wt = torch.randint(low=0, high=W-wb, size=(N,))
+		X = torch.zeros((N, H, W))
+
+		for i in range(N):
+			for j in range(ht[i], ht[i] + hb):
+				for k in range(wt[i], wt[i] + wb):
+					X[i][j][k] = 1.0
+
+		# X = X.reshape(X.shape[0], -1)
+
+		X_f = torch.fft.fft2(X)
+
+		X_f_real_flat = X_f.real.reshape(X_f.shape[0], -1)
+		X_f_imag_flat = X_f.imag.reshape(X_f.shape[0], -1)
+		Z = torch.cat([X_f_real_flat, X_f_imag_flat], dim=1)
+
+		Z_mean = Z.mean(dim=0, keepdim=True)
+
+		U, S, Vt = torch.linalg.svd(Z - Z_mean, full_matrices=False)
+		V = Vt.T
+		num_nonzero = 100
+
+		Z_c = (Z - Z_mean)@V[:,:num_nonzero]
+		X = Z_c
 
 	elif args.dataset == "MNIST":
 		transform = transforms.Compose([
@@ -304,5 +338,5 @@ if __name__ == "__main__":
 		plt.show()
 	else:
 		print(f'SVD of learned features: {torch.linalg.svd(Z - Z.mean(dim=0,keepdim=True))[1]}')
-		print(f'Average reconstruction error: {(X-X_hat).pow(2).mean().sqrt()}')
-		print(f'Maximum reconstruction error: {(X-X_hat).norm(dim=1).max() / np.sqrt(D)}')
+		print(f'Average reconstruction error: {(X-X_hat).norm(dim=1).mean() / (D ** 0.5)}')
+		print(f'Maximum reconstruction error: {(X-X_hat).norm(dim=1).max() / (D ** 0.5)}')
