@@ -34,8 +34,8 @@ def cc(X,
        n_iter_inner=1000,  # how many max steps for inner optimization of U, V
        thres_recon=1e-4,  # threshold for reconstruction loss being good enough
        alpha_max=0.5,  # global parameter for kernel
-       r_dimcheck_coeff=0.1,  # # radius for checking dimension.
-       r_min_coeff=0.1,  # minimum allowed radius for each flattening
+       r_dimcheck_coeff=0.15,  # # radius for checking dimension.
+       r_min_coeff=0.15,  # minimum allowed radius for each flattening
        r_max_coeff=1.1,  # maximum allowed radius for each flattening
        r_step_min_coeff=1.0,  # max steps to take when finding biggest r
        n_iter_rsearch=1,  # max steps to take when finding biggest r
@@ -94,7 +94,7 @@ def cc(X,
             # to and still be able to reconstruct
 
             # note d is implicitly returned, as U, V are of shape (D, d)
-            U, loss_rdimcheck = find_d(Z, z_c, r_dimcheck, n_iter_inner, d_prev)
+            U, loss_rdimcheck = find_d(Z, z_c, r_dimcheck, n_iter_inner, d_prev, max_error=thres_recon)
 
             # STEP 2: use secant method to find maximal radius that achieves
             # desired reconstruction loss
@@ -293,7 +293,7 @@ def opt_UV(Z, z_c, U_0, n_iter_inner, r=-1, kernel=-1):
     return U.detach().data, V.detach().data, loss.detach()
 
 
-def find_d(Z, z_c, r_dimcheck, n_iter_inner, d_prev):
+def find_d(Z, z_c, r_dimcheck, n_iter_inner, d_prev, max_error):
     # We find the minimial d by iteratively fitting a model
     # for some size d, then increase d and repeat if the max
     # reconstruction error is too large
@@ -335,6 +335,7 @@ def find_d(Z, z_c, r_dimcheck, n_iter_inner, d_prev):
         idx_triu = torch.triu_indices(d, d)
         H_input = H_input[:, idx_triu[0, :], idx_triu[1, :]]
         l0_error = (kernel * (Z_perp - H_input @ V.T)).norm(dim=1).max()
+        # l2_error = 0.5*(kernel * (Z_perp - H_input @ V.T)).norm(dim=1).pow(2).mean()
         # if achieved desired loss, reduce dimension
         # print(f'd: {d}, error: {l0_error}')
         if l0_error <= max_error:
