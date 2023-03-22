@@ -76,6 +76,7 @@ datasets = {
   "sine-wave": "The graph of a single period sine wave embedded in 2D",
   "semicircle": "A semicircle of 1.5pi radians embedded in 2D",
   "swissroll": "A 2d swiss roll embedded in 3D",
+  "swissroll-aug": "A 2d swiss roll embedded in 3D, augmented with a nonlinear feature to help flattening",
   "squares": "A simple vision dataset with several translations of squares in 2D",
   "MNIST": """A single class of the MNIST dataset (in our case, the 2's). This is in spirit to the
 		\"union of manifolds\" hypothesis.""",
@@ -139,6 +140,17 @@ if __name__ == "__main__":
 		D = 3
 		X, t = sklearn.datasets.make_swiss_roll(N, noise=args.sigma)
 		X = torch.from_numpy(X)
+	
+	elif args.dataset == "swissroll-aug":
+		N = args.N
+		D = 4
+		X, t = sklearn.datasets.make_swiss_roll(N, noise=args.sigma)
+		X = torch.from_numpy(X)
+		# squared 2-norms of each row
+		row_norms = torch.sum(X**2, dim=1)
+		# add as a nonlinear feature
+		X = 5*torch.cat((X, row_norms.view(-1,1)), dim=1)
+		print(f"X.shape: {X.shape}")
 
 	elif args.dataset == "squares":
 		N = args.N
