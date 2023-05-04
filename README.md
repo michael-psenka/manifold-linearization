@@ -17,12 +17,13 @@ The script `cc_test.py` includes many example experiments to run FlatNet constru
 
 ## Directory Structure
 
-
+- `cc_test.py`: main test script, as described in above section.
+- `cc.py`: contains the main FlatNet construction (training) code.
 - `experiments-paper`: contains scripts and results from experiments done in the paper.
 - `models`: contains code for various models that FlatNet was compared against in the paper.
-- `test-files`: contains
-- `README.md`: this file.
-- `requirements.txt`: contains the list of required dependencies.
+- `modules`: contains code for the neural network modules used in FlatNet.
+- `tools`: contains auxillery tools for evaulating the method, such as random manifold generators.
+
 
 ## Citation
 
