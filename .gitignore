@@ -3,6 +3,7 @@ experiments/
 datasets/
 lightning_logs/
 our_model/
+test-files/
 
 # torch datasets
 torch-dataset/
