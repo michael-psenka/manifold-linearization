@@ -4,7 +4,7 @@ import numpy as np
 from sklearn.datasets import make_swiss_roll
 import torch
 
-from cc import cc
+from flatnet import train
 
 # circle dataset
 n = 100
@@ -32,7 +32,7 @@ plt.show()
 # plt.show()
 
 
-F, _ = cc(X)
+F, _ = train(X)
 Z = F(X)
 print(torch.norm(Z - X))
 

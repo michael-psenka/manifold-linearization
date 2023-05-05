@@ -10,7 +10,7 @@ from torchvision.datasets import MNIST
 from torchvision.datasets import CIFAR10
 from torchvision import transforms
 
-import cc
+import flatnet
 from models.vae import train_vanilla_vae, train_beta_vae, train_factor_vae
 from tools.manifold_generator import Manifold
 # from tools.randman import RandMan
@@ -24,33 +24,33 @@ import json
 import os
 
 ##### COMMAND LINE ARGUMENTS #####
-# run cc_test.py --help to get help text
+# run flatnet_test.py --help to get help text
 # for each argument below, underscores become dashes
-# for example, cc.py --n_iters 1000 is invalid, but
-# cc.py --n-iters 1000 is valid
+# for example, flatnet.py --n_iters 1000 is invalid, but
+# flatnet.py --n-iters 1000 is valid
 
 @dataclasses.dataclass
 class Args:
-	"""cc_test.py
+	"""flatnet_test.py
 	A python script for testing out the Curvature Compression algorithm."""
 
 	dataset: str = "sine-wave"
 	"""A string indicating which dataset to use.
-	 Run "python cc_test.py --get-datasets" for a list of possible datasets."""
+	 Run "python flatnet_test.py --get-datasets" for a list of possible datasets."""
 
 	get_datasets: bool = False  # If true, print out a list of available datasets and exit.
 
 	get_models: bool = False  # If true, print out a list of available models and exit.
 
-	model: str = "cc"
+	model: str = "flatnet"
 	"""A string indicating which dataset to use.
-	 Run "python cc_test.py --get-datasets" for a list of possible datasets."""
+	 Run "python flatnet_test.py --get-datasets" for a list of possible datasets."""
 
 	N: int = 50
 	""" Number of training datapoints to use. Note this will not effect some
 	 datasets, such as MNIST """
 
-	n_iters: int = 1000 # Number of iterations to run the CC algorithm for
+	n_iters: int = 1000 # Number of iterations to run the FlatNet algorithm for
 
 	d_target: int = 1 # dimension we want to flatten the data to
 
@@ -86,7 +86,7 @@ datasets = {
 }
 
 models = {
-	"cc": "our method, explicitly constructing an encoder/decoder pair using the geometry of the data",
+	"flatnet": "our method, explicitly constructing an encoder/decoder pair using the geometry of the data",
 	"vae": "Variational Autoencoders",
 	"betavae": "beta-Variational Autoencoders with beta = 4",
 	"factorvae": "Factorizing Variational Autoencoders with gamma = 30",
@@ -250,7 +250,7 @@ if __name__ == "__main__":
 		if args.use_gpu:
 			X = X.cuda()
 	else:
-		sys.exit('Invalid dataset. Run "python cc_test.py --get-datasets" for a list of possible datasets.')
+		sys.exit('Invalid dataset. Run "python flatnet_test.py --get-datasets" for a list of possible datasets.')
 
 	# make sure data is float
 	X = X.float()
@@ -258,15 +258,15 @@ if __name__ == "__main__":
 	if args.use_gpu:
 		X = X.cuda()
 
-	# center and scale data. not explicitly needed for cc, but helps numerically
+	# center and scale data. not explicitly needed for flatnet, but helps numerically
 	X_mean = torch.mean(X, dim=0)
 	X = X - X_mean
 	X_norm = X.pow(2).mean().sqrt() #expeded norm of gaussian is sqrt(D)
 	X = X / X_norm
 
-	if args.model == 'cc':
-		# cProfile.run('cc.cc(X)')
-		f, g = cc.cc(X)
+	if args.model == 'flatnet':
+		# cProfile.run('flatnet.train(X)')
+		f, g = flatnet.train(X)
 	elif args.model == "vae":
 		f, g = train_vanilla_vae(X)
 	elif args.model == "betavae":
@@ -274,7 +274,7 @@ if __name__ == "__main__":
 	elif args.model == "factorvae":
 		f, g = train_factor_vae(X)
 	else:
-		sys.exit('Invalid model. Run "python cc_test.py --get-models" for a list of possible models.')
+		sys.exit('Invalid model. Run "python flatnet_test.py --get-models" for a list of possible models.')
 
 	# save experiment data
 	if args.save:

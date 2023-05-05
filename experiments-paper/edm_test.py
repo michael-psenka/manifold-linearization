@@ -4,7 +4,7 @@ import torch
 import numpy as np
 from tools.gp_manifold_generator import sample_points
 from models.vae import train_vanilla_vae, train_beta_vae, train_factor_vae
-from cc import cc
+from flatnet import train
 import matplotlib.pyplot as plt
 
 def distance_metric_ratio(X, P, F, eps = 1e-12):
@@ -34,10 +34,10 @@ print('generated manifold')
 
 
 
-cc_F, cc_G = cc(X)
-cc_edm = distance_metric_ratio(X, P, cc_F)
+flatnet_F, flatnet_G = train(X)
+flatnet_edm = distance_metric_ratio(X, P, flatnet_F)
 
-generate_plot(cc_edm, f'cc_net_N{N}_D{D}_d{d}')
+generate_plot(flatnet_edm, f'flatnet_N{N}_D{D}_d{d}')
 
 for epochs in stopping_time:
     print(f"running epoch {epochs}")

@@ -10,7 +10,7 @@ import torch.nn.functional as F
 # used for optimizing over Stiefel
 import geoopt
 
-from modules import cc_nn
+from modules import flatnet_nn
 
 from tqdm import trange
 import matplotlib.pyplot as plt
@@ -28,7 +28,7 @@ import matplotlib.pyplot as plt
 # gamma_0 is the starting value of the "inverse neighborhood size"
 # --- (the smaller gamma_0 is, the larger the neighborhood size is)
 
-def cc(X,
+def train(X,
        n_stop_to_converge=5,  # how many times of no progress do we call convergence?
        n_iter=500,  # number of flattening steps to perform
        n_iter_inner=1000,  # how many max steps for inner optimization of U, V
@@ -74,9 +74,9 @@ def cc(X,
 
     ############# INIT GLOBAL VARIABLES##########
     # encoder network
-    f = cc_nn.CCNetwork()
+    f = flatnet_nn.FlatteningNetwork()
     # decoder network
-    g = cc_nn.CCNetwork()
+    g = flatnet_nn.FlatteningNetwork()
     Z = X.clone()
     # ################ MAIN LOOP #########################
     with trange(n_iter, unit="iters") as pbar:
@@ -153,8 +153,8 @@ def cc(X,
             kernel_pre = torch.exp(-gamma * (Z - z_c).pow(2).sum(dim=1, keepdim=True))
             z_mu = (Z * kernel_pre).sum(dim=0, keepdim=True) / kernel_pre.sum()
 
-            f_layer = cc_nn.FLayer(U, z_mu, gamma, alpha)
-            g_layer = cc_nn.GLayer(U, V, z_mu, z_c, gamma, alpha)
+            f_layer = flatnet_nn.FLayer(U, z_mu, gamma, alpha)
+            g_layer = flatnet_nn.GLayer(U, V, z_mu, z_c, gamma, alpha)
 
             # test for convergence
             Z_new = f_layer(Z)
@@ -190,7 +190,7 @@ def opt_UV(Z, z_c, U_0, n_iter_inner, r=-1, kernel=-1):
     N = Z.shape[0]
     # TESTING OPTION: whether or not to use cross terms of the
     # second fundamental form for reconstruction
-    # NOTE: ALSO NEED TO CHANGE IN cc_nn.py IF CHANGING
+    # NOTE: ALSO NEED TO CHANGE IN flatnet_nn.py IF CHANGING
     use_cross_terms = True
 
     # initialize geoopt manifold object

@@ -14,13 +14,13 @@ pip install -r requirements.txt
 
 ## Quickstart usage
 
-The script `cc_test.py` includes many example experiments to run FlatNet constructions on. To see an example experiment, simply run `python cc_test.py` in the main directory to see the flattening and reconstruction of a simple sine wave. Further experiments and options can be specified through command line arguments, managed through [tyro](https://github.com/brentyi/tyro); to see the full list of arguments, run `python cc_test.py --help`.
+The script `flatnet.py` includes many example experiments to run FlatNet constructions on. To see an example experiment, simply run `python flatnet_test.py` in the main directory to see the flattening and reconstruction of a simple sine wave. Further experiments and options can be specified through command line arguments, managed through [tyro](https://github.com/brentyi/tyro); to see the full list of arguments, run `python flatnet_test.py --help`.
 
 
 ## Directory Structure
 
-- `cc_test.py`: main test script, as described in above section.
-- `cc.py`: contains the main FlatNet construction (training) code.
+- `flatnet_test.py`: main test script, as described in above section.
+- `flatnet.py`: contains the main FlatNet construction (training) code.
 - `experiments-paper`: contains scripts and results from experiments done in the paper.
 - `models`: contains code for various models that FlatNet was compared against in the paper.
 - `modules`: contains code for the neural network modules used in FlatNet.

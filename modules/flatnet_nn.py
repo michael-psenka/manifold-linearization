@@ -1,8 +1,8 @@
 import torch
 import torch.nn as nn
-class CCNetwork(nn.Module):
+class FlatteningNetwork(nn.Module):
 	def __init__(self):
-		super(CCNetwork, self).__init__()
+		super(FlatteningNetwork, self).__init__()
 		self.network = torch.nn.Sequential()
 		
 	def forward(self, X):
