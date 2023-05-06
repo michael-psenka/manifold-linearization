@@ -74,6 +74,12 @@ def train(X,
     # decoder network
     g = flatnet_nn.FlatteningNetwork()
     Z = X.clone()
+
+    # normalize data
+    Z_mean = torch.mean(Z, dim=0)
+    Z = Z - Z_mean
+    Z_norm = Z.pow(2).mean().sqrt()
+    Z = Z / Z_norm
     # ################ MAIN LOOP #########################
     with trange(n_iter, unit="iters") as pbar:
         for j in pbar:
