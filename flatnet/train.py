@@ -25,7 +25,7 @@ from tqdm import trange
 # --- (the smaller gamma_0 is, the larger the neighborhood size is)
 
 def train(X,
-       n_stop_to_converge=15,  # how many times of no progress do we call convergence?
+       n_stop_to_converge=5,  # how many times of no progress do we call convergence?
        n_iter=500,  # number of flattening steps to perform
        n_iter_inner=1000,  # how many max steps for inner optimization of U, V
        thres_recon=1e-4,  # threshold for reconstruction loss being good enough
@@ -76,11 +76,6 @@ def train(X,
     g = flatnet_nn.FlatteningNetwork()
     Z = X.clone()
 
-    # normalize data
-    Z_mean = torch.mean(Z, dim=0)
-    Z = Z - Z_mean
-    Z_norm = Z.pow(2).mean().sqrt()
-    Z = Z / Z_norm
     # ################ MAIN LOOP #########################
     with trange(n_iter, unit="iters") as pbar:
         for j in pbar:
