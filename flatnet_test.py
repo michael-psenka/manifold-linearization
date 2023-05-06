@@ -10,7 +10,7 @@ from torchvision.datasets import MNIST
 from torchvision.datasets import CIFAR10
 from torchvision import transforms
 
-import flatnet
+import flatnet.train as train
 from models.vae import train_vanilla_vae, train_beta_vae, train_factor_vae
 from tools.manifold_generator import Manifold
 # from tools.randman import RandMan
@@ -266,7 +266,7 @@ if __name__ == "__main__":
 
 	if args.model == 'flatnet':
 		# cProfile.run('flatnet.train(X)')
-		f, g = flatnet.train(X)
+		f, g = train(X)
 	elif args.model == "vae":
 		f, g = train_vanilla_vae(X)
 	elif args.model == "betavae":

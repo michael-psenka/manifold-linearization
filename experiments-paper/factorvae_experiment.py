@@ -1,6 +1,9 @@
 from itertools import chain
 import os
 
+import sys
+sys.path.append('../')
+
 import torch
 import pytorch_lightning as pl
 

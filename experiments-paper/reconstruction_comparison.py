@@ -1,8 +1,12 @@
 from statistics import mean, stdev
 import torch
+
+import sys
+sys.path.append('../')
+
 from models.vae import train_vanilla_vae, train_beta_vae, train_factor_vae
 from tools.gp_manifold_generator import sample_points
-from flatnet import train
+from flatnet.train import train
 import matplotlib.pyplot as plt
 
 

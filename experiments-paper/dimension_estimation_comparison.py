@@ -1,11 +1,12 @@
 from statistics import mean, stdev, mode
+import sys
+sys.path.append('../')
 import torch
 from models.vae import train_vanilla_vae, train_beta_vae, train_factor_vae
 from tools.gp_manifold_generator import sample_points
-from flatnet import train
+from flatnet.train import train
 import matplotlib.pyplot as plt
 import skdim
-
 
 def flatnet_dim_estimation(F):
     return mode([layer.k for layer in F.network])

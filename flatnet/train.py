@@ -7,7 +7,7 @@ import torch
 # used for optimizing over Stiefel
 import geoopt
 
-from modules import flatnet_nn
+from .modules import flatnet_nn
 
 from tqdm import trange
 

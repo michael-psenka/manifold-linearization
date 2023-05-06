@@ -2,9 +2,11 @@ import json
 import os
 import torch
 import numpy as np
+import sys
+sys.path.append('../')
 from tools.gp_manifold_generator import sample_points
 from models.vae import train_vanilla_vae, train_beta_vae, train_factor_vae
-from flatnet import train
+from flatnet.train import train
 import matplotlib.pyplot as plt
 
 def distance_metric_ratio(X, P, F, eps = 1e-12):

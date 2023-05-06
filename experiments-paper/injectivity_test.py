@@ -2,6 +2,9 @@ import typing
 import torch
 import pytorch_lightning as pl
 
+import sys
+sys.path.append('../')
+
 
 def injectivity_distance_ratio(
         F: typing.Callable[[torch.Tensor], torch.Tensor],  # F: R^d -> R^D

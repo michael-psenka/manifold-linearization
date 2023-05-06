@@ -4,7 +4,10 @@ import numpy as np
 from sklearn.datasets import make_swiss_roll
 import torch
 
-from flatnet import train
+import sys
+sys.path.append('../')
+
+from flatnet.train import train
 
 # circle dataset
 n = 100
