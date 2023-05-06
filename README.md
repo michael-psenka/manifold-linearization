@@ -20,6 +20,29 @@ pip install -r requirements.txt
 
 ## Quickstart usage
 
+The follolwing is a simple example script using the pip package:
+
+```python
+import torch
+import flatnet
+import matplotlib.pyplot as plt
+
+# create sine wave dataset
+t = torch.linspace(0, 1, 50)
+y = torch.sin(t * 2 * 3.14)
+X = torch.stack([t, y], dim=1)
+
+# normalize data
+X = (X - X.mean(dim=0)) / X.std(dim=0)
+
+f, g = flatnet.train(X, n_iter=50)
+
+Z = f(X).detach().numpy()
+
+plt.scatter(Z[:,0], Z[:,1])
+plt.show()
+```
+
 The script `flatnet.py` includes many example experiments to run FlatNet constructions on. To see an example experiment, simply run `python flatnet_test.py` in the main directory to see the flattening and reconstruction of a simple sine wave. Further experiments and options can be specified through command line arguments, managed through [tyro](https://github.com/brentyi/tyro); to see the full list of arguments, run `python flatnet_test.py --help`.
 
 
