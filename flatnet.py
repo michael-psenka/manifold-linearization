@@ -3,9 +3,6 @@
 # *****************************************************************************
 import numpy as np
 import torch
-import torch.nn as nn
-import torch.optim as optim
-import torch.nn.functional as F
 
 # used for optimizing over Stiefel
 import geoopt
@@ -13,7 +10,6 @@ import geoopt
 from modules import flatnet_nn
 
 from tqdm import trange
-import matplotlib.pyplot as plt
 
 
 # ****************************i*************************************************
