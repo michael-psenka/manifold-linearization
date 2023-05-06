@@ -2,8 +2,10 @@ from setuptools import setup, find_packages
 
 setup(
     name='flatnet',
-    version='0.1.4',
+    version='0.1.5',
     description='FlatNet implementation in PyTorch, from the paper \"Representation Learning via Manifold Flattening and Reconstruction\"',
+    long_description='This is a minimal pip package to allow easy deployment of FlatNets, a geometry-based neural autoencoder architecture that automatically builds its layers based on geometric properties of the dataset. See our paper, [Representation Learning via Manifold Flattening and Reconstruction](https://arxiv.org/abs/2305.01777), for more details, and [the Github repo](https://github.com/michael-psenka/manifold-linearization) for the code and example scripts & notebooks.',
+    long_description_content_type='text/markdown',
     author='Michael Psenka',
     author_email='psenka@eecs.berkeley.edu',
     maintainer=['Druv Pai <druvpai@berkeley.edu>', 'Vishal Raman <vraman@berkeley.edu>'],
