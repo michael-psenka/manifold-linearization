@@ -30,11 +30,14 @@ import matplotlib.pyplot as plt
 # create sine wave dataset
 t = torch.linspace(0, 1, 50)
 y = torch.sin(t * 2 * 3.14)
+
+# format dataset of N points of dimension D as (N, D) matrix
 X = torch.stack([t, y], dim=1)
 
 # normalize data
 X = (X - X.mean(dim=0)) / X.std(dim=0)
 
+# f and g are both functions from R^D to R^D
 f, g = flatnet.train(X, n_iter=50)
 
 Z = f(X).detach().numpy()
