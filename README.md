@@ -6,7 +6,13 @@ This is a research project focused on the automatic generation of autoencoders w
 
 ## Installation
 
-The project is written in Python. To install the appropriate dependencies, run the following command:
+The pure FlatNet construction (training) code is available as a pip package and can be installed in the following way:
+
+```
+pip install flatnet
+```
+
+This repo also contains a number of testing and illustrative files to both familiarize new users with the framework and show the experiments run in the main paper. To install the appropriate remaining dependencies for this repo, first navigate to the project directory, then run the following command:
 
 ```
 pip install -r requirements.txt
@@ -20,10 +26,10 @@ The script `flatnet.py` includes many example experiments to run FlatNet constru
 ## Directory Structure
 
 - `flatnet_test.py`: main test script, as described in above section.
-- `flatnet.py`: contains the main FlatNet construction (training) code.
+- `flatnet/train.py`: contains the main FlatNet construction (training) code.
+- `flatnet/modules`: contains code for the neural network modules used in FlatNet.
 - `experiments-paper`: contains scripts and results from experiments done in the paper.
 - `models`: contains code for various models that FlatNet was compared against in the paper.
-- `modules`: contains code for the neural network modules used in FlatNet.
 - `tools`: contains auxillery tools for evaulating the method, such as random manifold generators.
 
 
