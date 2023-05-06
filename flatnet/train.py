@@ -25,12 +25,13 @@ from tqdm import trange
 # --- (the smaller gamma_0 is, the larger the neighborhood size is)
 
 def train(X,
-       n_stop_to_converge=5,  # how many times of no progress do we call convergence?
+       n_stop_to_converge=15,  # how many times of no progress do we call convergence?
        n_iter=500,  # number of flattening steps to perform
        n_iter_inner=1000,  # how many max steps for inner optimization of U, V
        thres_recon=1e-4,  # threshold for reconstruction loss being good enough
        alpha_max=0.5,  # global parameter for kernel
        r_dimcheck_coeff=0.15,  # # radius for checking dimension.
+       max_error_dimcheck_ratio=0.3,  # max l0 error with respect to r_dimcheck to stop dimension search
        r_min_coeff=0.15,  # minimum allowed radius for each flattening
        r_max_coeff=1.1,  # maximum allowed radius for each flattening
        r_step_min_coeff=1.0,  # max steps to take when finding biggest r
@@ -96,7 +97,7 @@ def train(X,
             # to and still be able to reconstruct
 
             # note d is implicitly returned, as U, V are of shape (D, d)
-            U, loss_rdimcheck = find_d(Z, z_c, r_dimcheck, n_iter_inner, d_prev, max_error=thres_recon)
+            U, loss_rdimcheck = find_d(Z, z_c, r_dimcheck, n_iter_inner, d_prev, max_error=thres_recon, max_error_dimcheck_ratio=max_error_dimcheck_ratio)
 
             # STEP 2: use secant method to find maximal radius that achieves
             # desired reconstruction loss
@@ -295,12 +296,12 @@ def opt_UV(Z, z_c, U_0, n_iter_inner, r=-1, kernel=-1):
     return U.detach().data, V.detach().data, loss.detach()
 
 
-def find_d(Z, z_c, r_dimcheck, n_iter_inner, d_prev, max_error):
+def find_d(Z, z_c, r_dimcheck, n_iter_inner, d_prev, max_error, max_error_dimcheck_ratio=0.3):
     # We find the minimial d by iteratively fitting a model
     # for some size d, then increase d and repeat if the max
     # reconstruction error is too large
 
-    max_error = 0.2 * r_dimcheck
+    max_error = max_error_dimcheck_ratio * r_dimcheck
 
     N, D = Z.shape
     # init
