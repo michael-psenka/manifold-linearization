@@ -5,6 +5,8 @@ setup(
     version='0.1.4',
     description='FlatNet implementation in PyTorch, from the paper \"Representation Learning via Manifold Flattening and Reconstruction\"',
     author='Michael Psenka',
+    author_email='psenka@eecs.berkeley.edu',
+    maintainer=['Druv Pai <druvpai@berkeley.edu>', 'Vishal Raman <vraman@berkeley.edu>'],
     packages=find_packages(),
     install_requires=[ 
         'cmake>=3.26.3',
