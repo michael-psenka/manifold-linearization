@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='flatnet',
-    version='0.1.0',
+    version='0.1.2',
     description='FlatNet implementation in PyTorch, from the paper \"Representation Learning via Manifold Flattening and Reconstruction\"',
     author='Michael Psenka',
     packages=find_packages(),
