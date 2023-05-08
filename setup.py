@@ -1,10 +1,20 @@
 from setuptools import setup, find_packages
 
+with open("README.md", "r", encoding="utf-8") as fh:
+    long_description = fh.read()
+
+with open("flatnet/CHANGES.rst", "r", encoding="utf-8") as ch:
+    changelog = ch.read()
+
+long_desc_init = 'This is a minimal pip package to allow easy deployment of FlatNets, a geometry-based neural autoencoder architecture that automatically builds its layers based on geometric properties of the dataset. See our paper, [Representation Learning via Manifold Flattening and Reconstruction](https://arxiv.org/abs/2305.01777), for more details, and [the Github repo](https://github.com/michael-psenka/manifold-linearization) for the code and example scripts & notebooks.'
+
+long_description = long_desc_init + "\n\n" + changelog + "\n\n" + long_description
+
 setup(
     name='flatnet',
-    version='0.1.5',
+    version='0.2.0',
     description='FlatNet implementation in PyTorch, from the paper \"Representation Learning via Manifold Flattening and Reconstruction\"',
-    long_description='This is a minimal pip package to allow easy deployment of FlatNets, a geometry-based neural autoencoder architecture that automatically builds its layers based on geometric properties of the dataset. See our paper, [Representation Learning via Manifold Flattening and Reconstruction](https://arxiv.org/abs/2305.01777), for more details, and [the Github repo](https://github.com/michael-psenka/manifold-linearization) for the code and example scripts & notebooks.',
+    long_description=long_description,
     long_description_content_type='text/markdown',
     author='Michael Psenka',
     author_email='psenka@eecs.berkeley.edu',
@@ -13,6 +23,7 @@ setup(
     install_requires=[ 
         'cmake>=3.26.3',
         'filelock>=3.12.0',
+        'imageio>=2.28.1',
         'geoopt>=0.5.0',
         'Jinja2>=3.1.2',
         'lit>=16.0.2',
