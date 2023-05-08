@@ -11,6 +11,10 @@ from .modules import flatnet_nn
 
 from tqdm import trange
 
+# for saving gifs
+import matplotlib.pyplot as plt
+import imageio
+import os
 
 # ****************************i*************************************************
 # This is the primary script for the curvature compression algorithm.
@@ -36,10 +40,16 @@ def train(X,
        r_max_coeff=1.1,  # maximum allowed radius for each flattening
        r_step_min_coeff=1.0,  # max steps to take when finding biggest r
        n_iter_rsearch=1,  # max steps to take when finding biggest r
+       save_gif = False, # whether to save gif of flattening process. currently only works for 2D data
        ):
     N, D = X.shape
     # needed for dist-to-gamma conversion
     log2 = float(np.log(2))
+
+    # if save gif is set to true but data is not 2D, throw warning but continue running with save_gif = False
+    if save_gif and D != 2:
+        print("Warning: save_gif is set to True but data is not 2D. Setting save_gif to False")
+        save_gif = False
     #######	## HYPERPARAMETERS ####
     ##############################
 
@@ -75,6 +85,21 @@ def train(X,
     # decoder network
     g = flatnet_nn.FlatteningNetwork()
     Z = X.clone()
+
+    ################### ANIMATION SAVING #################
+
+    if save_gif:
+        # print out to user that we are creating a folder to save frames temporarily
+        print("Creating 'flatnet_gif_frames' directory to save frames temporarily. This directory will be deleted after the flattening process is complete and the gif is rendered.")
+        # Ensure the 'flatnet_gif_frames' directory does not already exist
+        if os.path.exists('flatnet_gif_frames'):
+            raise Exception("The 'flatnet_gif_frames' directory already exists; to ensure this script does not damage your local files, please eiehter delete flatnet_gif_frames or move this script to a new directory and try again.")
+
+        # Create the 'flatnet_gif_frames' directory
+        os.makedirs('flatnet_gif_frames')
+
+        # create array to store frames
+        frames = []
 
     # ################ MAIN LOOP #########################
     with trange(n_iter, unit="iters") as pbar:
@@ -173,10 +198,33 @@ def train(X,
                 # only update representation if we add the layer
                 Z = Z_new.clone()
 
+                # save gif frame
+                if save_gif:
+                    fig, ax = plt.subplots()
+                    ax.scatter(Z[:, 0].detach().numpy(), Z[:, 1].detach().numpy())
+                    ax.axis('off')
+                    for spine in ax.spines.values():
+                        spine.set_visible(False)
+                    plt.savefig(f"flatnet_gif_frames/frame_{j}.png")
+                    plt.close()
+                    # save frame
+                    frames.append(imageio.imread(f"flatnet_gif_frames/frame_{j}.png"))
+
             # with torch.no_grad():
             # 	recon_loss = 0.5*(g(Z) - X).pow(2).mean()
             pbar.set_postfix({"local_recon": loss_r.item(), \
                               "d": U.shape[1], "r_ratio": (r / r_max).item(), "alpha": alpha})
+
+    # final gif processing
+    if save_gif:
+        # save gif to be 6s long. note duration is duration
+        # of each frame in ms
+        imageio.mimsave('flatnet_flow.gif', frames, duration=6000 / len(frames))
+        
+        # delete auxillery files
+        for file_name in os.listdir('flatnet_gif_frames'):
+            os.remove(os.path.join('flatnet_gif_frames', file_name))
+        os.rmdir('flatnet_gif_frames')
 
     return f, g
 
