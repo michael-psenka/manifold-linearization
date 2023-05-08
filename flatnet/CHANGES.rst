@@ -1,5 +1,10 @@
 Changelog
 =========
+0.2.0 (2023-05-07)
+------------------
+Features:
+- Added easy gif saving! If your data is 2D, you can now visualize how your data evolves with the manifold flow.
+
 0.1.4 (2023-05-06)
 ------------------
 Bug Fixes:
@@ -9,7 +14,7 @@ Bug Fixes:
 ------------------
 
 Bug Fixes:
-- Added normalization of the input data
+- Minor performance improvements on simple cases
 
 0.1.1 (2023-05-06)
 ------------------
@@ -20,4 +25,4 @@ Features:
 0.1.0 (2022-12-31)
 ------------------
 
-Initial release of flatnet!
+- Initial release of flatnet!
