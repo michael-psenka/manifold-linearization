@@ -46,7 +46,7 @@ plt.scatter(Z[:,0], Z[:,1])
 plt.show()
 ```
 
-The script `flatnet.py` includes many example experiments to run FlatNet constructions on. To see an example experiment, simply run `python flatnet_test.py` in the main directory to see the flattening and reconstruction of a simple sine wave. Further experiments and options can be specified through command line arguments, managed through [tyro](https://github.com/brentyi/tyro); to see the full list of arguments, run `python flatnet_test.py --help`.
+The script `flatnet_test.py` includes many example experiments to run FlatNet constructions on. To see an example experiment, simply run `python flatnet_test.py` in the main directory to see the flattening and reconstruction of a simple sine wave. Further experiments and options can be specified through command line arguments, managed through [tyro](https://github.com/brentyi/tyro); to see the full list of arguments, run `python flatnet_test.py --help`.
 
 
 ## Directory Structure
