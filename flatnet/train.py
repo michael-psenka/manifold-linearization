@@ -13,8 +13,17 @@ from tqdm import trange
 
 # for saving gifs
 import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
 import imageio
 import os
+import atexit
+
+# delete temporary files if we exit too early
+def exit_handler():
+    if os.path.exists('flatnet_gif_frames'):
+        for file_name in os.listdir('flatnet_gif_frames'):
+            os.remove(os.path.join('flatnet_gif_frames', file_name))
+        os.rmdir('flatnet_gif_frames')
 
 # ****************************i*************************************************
 # This is the primary script for the curvature compression algorithm.
@@ -29,7 +38,7 @@ import os
 # --- (the smaller gamma_0 is, the larger the neighborhood size is)
 
 def train(X,
-       n_stop_to_converge=5,  # how many times of no progress do we call convergence?
+       n_stop_to_converge=10,  # how many times of no progress do we call convergence?
        n_iter=500,  # number of flattening steps to perform
        n_iter_inner=1000,  # how many max steps for inner optimization of U, V
        thres_recon=1e-4,  # threshold for reconstruction loss being good enough
@@ -47,8 +56,8 @@ def train(X,
     log2 = float(np.log(2))
 
     # if save gif is set to true but data is not 2D, throw warning but continue running with save_gif = False
-    if save_gif and D != 2:
-        print("Warning: save_gif is set to True but data is not 2D. Setting save_gif to False")
+    if save_gif and not (D == 2 or D == 3):
+        print("Warning: save_gif is set to True but data is not 2D or 3D. Setting save_gif to False")
         save_gif = False
     #######	## HYPERPARAMETERS ####
     ##############################
@@ -90,13 +99,16 @@ def train(X,
 
     if save_gif:
         # print out to user that we are creating a folder to save frames temporarily
-        print("Creating 'flatnet_gif_frames' directory to save frames temporarily. This directory will be deleted after the flattening process is complete and the gif is rendered.")
+        print("NOTE: creating 'flatnet_gif_frames' directory to save frames temporarily. This directory will be deleted after the flattening process is complete and the gif is rendered.")
         # Ensure the 'flatnet_gif_frames' directory does not already exist
         if os.path.exists('flatnet_gif_frames'):
             raise Exception("The 'flatnet_gif_frames' directory already exists; to ensure this script does not damage your local files, please eiehter delete flatnet_gif_frames or move this script to a new directory and try again.")
 
         # Create the 'flatnet_gif_frames' directory
         os.makedirs('flatnet_gif_frames')
+
+        # now if we exit, we need to delete the temp files
+        atexit.register(exit_handler)
 
         # create array to store frames
         frames = []
@@ -200,11 +212,18 @@ def train(X,
 
                 # save gif frame
                 if save_gif:
-                    fig, ax = plt.subplots()
-                    ax.scatter(Z[:, 0].detach().numpy(), Z[:, 1].detach().numpy())
-                    ax.axis('off')
-                    for spine in ax.spines.values():
-                        spine.set_visible(False)
+                    if D == 2:
+                        fig, ax = plt.subplots()
+                        ax.scatter(Z[:, 0].detach().numpy(), Z[:, 1].detach().numpy())
+                        ax.axis('off')
+                        for spine in ax.spines.values():
+                            spine.set_visible(False)
+                    elif D == 3:
+                        fig = plt.figure()
+                        ax = fig.add_subplot(111, projection='3d')
+                        ax.axis('off')
+                        ax.scatter(Z[:, 0].detach().numpy(), Z[:, 1].detach().numpy(), Z[:, 2].detach().numpy())
+                        
                     plt.savefig(f"flatnet_gif_frames/frame_{j}.png")
                     plt.close()
                     # save frame
