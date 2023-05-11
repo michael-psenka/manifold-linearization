@@ -12,7 +12,7 @@ long_description = long_desc_init + "\n\n" + changelog + "\n\n" + long_descripti
 
 setup(
     name='flatnet',
-    version='0.2.0',
+    version='0.2.1',
     description='FlatNet implementation in PyTorch, from the paper \"Representation Learning via Manifold Flattening and Reconstruction\"',
     long_description=long_description,
     long_description_content_type='text/markdown',

@@ -1,5 +1,10 @@
 Changelog
 =========
+0.2.1 (2023-05-09)
+------------------
+Features:
+- Added support for 3D data for gif saving.
+
 0.2.0 (2023-05-07)
 ------------------
 Features:
