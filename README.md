@@ -57,7 +57,7 @@ The script `flatnet_test.py` includes many example experiments to run FlatNet co
 - `flatnet/modules`: contains code for the neural network modules used in FlatNet.
 - `experiments-paper`: contains scripts and results from experiments done in the paper.
 - `models`: contains code for various models that FlatNet was compared against in the paper.
-- `tools`: contains auxillery tools for evaulating the method, such as random manifold generators.
+- `tools`: contains auxillery tools for evaulating the method, such as random manifold generators -- one of which being from the [randman](https://github.com/fzenke/randman) repo.
 
 
 ## Citation
