@@ -18,7 +18,7 @@ setup(
     long_description_content_type='text/markdown',
     author='Michael Psenka',
     author_email='psenka@eecs.berkeley.edu',
-    maintainer=['Druv Pai <druvpai@berkeley.edu>', 'Vishal Raman <vraman@berkeley.edu>'],
+    maintainer='Druv Pai <druvpai@berkeley.edu>, Vishal Raman <vraman@berkeley.edu>',
     packages=find_packages(),
     install_requires=[ 
         'cmake>=3.26.3',
