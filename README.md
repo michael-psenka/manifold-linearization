@@ -2,7 +2,7 @@
 
 This is a research project focused on the automatic generation of autoencoders with minimal feature size, when the data is supported near an embedded submanifold. Using the geometric structure of the manifold, we can equivalently treat this problem as a manifold flattening problem when the manifold is flattenable[^1]. See our paper, [Representation Learning via Manifold Flattening and Reconstruction](https://www.michaelpsenka.io/papers/flatnet/), for more details.
 
-The main practical benefit: neural network autoencoders that build themselves from your data! Instead of trial-and-error guessing what architecture dimensions to use, simply run a geometric process that automatically optimizes layer width, depth, and stopping time based on your data[^2].
+The main practical benefit: **neural network autoencoders that build themselves from your data!** Instead of trial-and-error guessing what architecture dimensions to use, simply run a geometric process that automatically optimizes layer width, depth, and stopping time based on your data[^2].
 
 [^1]: Geometric note: while flattenability is not general, there are some heuristic reasons we can motivate this assumption for real world data. For example, if a dataset permits a VAE-like autoencoder, where samples from the data distribution can be generated via a standard Gaussian in the latent space, then the samples lie close in probability to a flattenable manifold, as this VAE has constructed a single-chart atlas.
 
