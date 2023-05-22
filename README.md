@@ -76,6 +76,6 @@ If you use this work in your research, please cite the following paper:
 
 We hope that you find this project useful. If you have any questions or suggestions, please feel free to contact us.
 
-## Copyright
+## Copyright notice
 
 THIS SOFTWARE AND/OR DATA WAS DEPOSITED IN THE BAIR OPEN RESEARCH COMMONS REPOSITORY ON 5/3/2023.
