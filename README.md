@@ -16,6 +16,8 @@ The pure FlatNet construction (training) code is available as a pip package and 
 pip install flatnet
 ```
 
+### Optional installation
+
 This repo also contains a number of testing and illustrative files to both familiarize new users with the framework and show the experiments run in the main paper. To install the appropriate remaining dependencies for this repo, first navigate to the project directory, then run the following command:
 
 ```
