@@ -1,6 +1,18 @@
 # *****************************************************************************
 #  CURVATURE COMPRESSION
 # *****************************************************************************
+
+
+# Important lines:
+# *---------------------------------------------------------*
+
+# 52: main training loop
+# 153: radius optimization
+# 267: optimize flattening/reconstruction pair per layer
+# 376: automatically finding intrinsic dimension
+
+# *---------------------------------------------------------*
+
 import numpy as np
 import torch
 
@@ -25,7 +37,7 @@ def exit_handler():
             os.remove(os.path.join('flatnet_gif_frames', file_name))
         os.rmdir('flatnet_gif_frames')
 
-# ****************************i*************************************************
+# ******************************************************************************
 # This is the primary script for the curvature compression algorithm.
 # Input: data matrix X of shape (n,D), where D is the embedding dimension and
 # n is the number of data points;
@@ -37,6 +49,7 @@ def exit_handler():
 # gamma_0 is the starting value of the "inverse neighborhood size"
 # --- (the smaller gamma_0 is, the larger the neighborhood size is)
 
+# main training loop
 def train(X,
        n_stop_to_converge=10,  # how many times of no progress do we call convergence?
        n_iter=500,  # number of flattening steps to perform
@@ -137,6 +150,7 @@ def train(X,
             # get needed second observation
             U, V, loss_rmidpoint = opt_UV(Z, z_c, U, n_iter_inner, r=r_midpoint)
 
+            # radius optimization
             # begin secant method (note we use log loss for numerical reasons)
             log_thres_recon = torch.log(torch.Tensor([thres_recon]))
             r_m2 = r_dimcheck
@@ -186,10 +200,16 @@ def train(X,
 
             gamma = float(np.log(2)) / (r.item() ** 2)
             kernel_pre = torch.exp(-gamma * (Z - z_c).pow(2).sum(dim=1, keepdim=True))
-            z_mu = (Z * kernel_pre).sum(dim=0, keepdim=True) / kernel_pre.sum()
+            z_mu_local = (Z * kernel_pre).sum(dim=0, keepdim=True) / kernel_pre.sum()
 
-            f_layer = flatnet_nn.FLayer(U, z_mu, gamma, alpha)
-            g_layer = flatnet_nn.GLayer(U, V, z_mu, z_c, gamma, alpha)
+            # add centering and normalization to manifold
+            z_mu = Z.mean(dim=0, keepdim=True)
+            # normalize by max norm of features
+            z_norm = (Z - z_mu).norm(dim=1).max()
+            
+
+            f_layer = flatnet_nn.FLayer(U, z_mu_local, gamma, z_mu, z_norm, alpha)
+            g_layer = flatnet_nn.GLayer(U, V, z_mu_local, z_c, gamma, z_mu, z_norm, alpha)
 
             # test for convergence
             Z_new = f_layer(Z)
@@ -250,6 +270,7 @@ def train(X,
 
 # ################## HELPER METHODS #####################
 
+# optimize flattening/reconstruction pair per layer
 def opt_UV(Z, z_c, U_0, n_iter_inner, r=-1, kernel=-1):
     D, d = U_0.shape
     N = Z.shape[0]
@@ -358,6 +379,7 @@ def opt_UV(Z, z_c, U_0, n_iter_inner, r=-1, kernel=-1):
     return U.detach().data, V.detach().data, loss.detach()
 
 
+# automatically finding intrinsic dimension
 def find_d(Z, z_c, r_dimcheck, n_iter_inner, d_prev, max_error, max_error_dimcheck_ratio=0.3):
     # We find the minimial d by iteratively fitting a model
     # for some size d, then increase d and repeat if the max

@@ -15,13 +15,15 @@ class FlatteningNetwork(nn.Module):
 		self.network.add_module(name, nn_module)
 
 class FLayer(nn.Module):
-	def __init__(self, U, x_mu, gamma, alpha=1):
+	def __init__(self, U, z_mu_local, gamma, z_mu, z_norm, alpha=1):
 		super(FLayer, self).__init__()
 		self.U = U
 		self.D, self.k = U.shape
-		self.x_mu = x_mu
+		self.z_mu_local = z_mu_local
 		self.gamma = gamma
 		self.alpha = alpha
+		self.z_mu = z_mu
+		self.z_norm = z_norm
 
 		
 	def forward(self, X):
@@ -30,29 +32,34 @@ class FLayer(nn.Module):
 
 		# returns: tensor of shape N x D
 
-		kernel = self.alpha*torch.exp(-self.gamma*(X - self.x_mu).pow(2).sum(dim=1, keepdim=True))
+		kernel = self.alpha*torch.exp(-self.gamma*(X - self.z_mu_local).pow(2).sum(dim=1, keepdim=True))
 		# self.kernel = kernel
-		proj = (X - self.x_mu)@self.U@self.U.T + self.x_mu
+		proj = (X - self.z_mu_local)@self.U@self.U.T + self.z_mu_local
 		Z = proj*kernel + X*(1 - kernel)
+
+		Z = (Z - self.z_mu)/self.z_norm
 
 		return Z
 
 
 class GLayer(nn.Module):
-	def __init__(self, U, V, x_mu, x_c, gamma, alpha=1):
+	def __init__(self, U, V, z_mu_local, x_c, gamma, z_mu, z_norm, alpha=1):
 		super(GLayer, self).__init__()
 		self.U = U
 		self.V = V
 		self.D, self.k = U.shape #U, V have same shape
-		self.x_mu = x_mu
+		self.z_mu_local = z_mu_local
 		self.x_c = x_c
 		self.gamma = gamma
 		self.alpha = alpha
 
 		# computations we don't need to repeat every evaluation
-		self.x_muU = x_mu @ U
+		self.x_muU = z_mu_local @ U
 		self.x_cU = x_c @ U
-		self.change = x_c - x_mu - (self.x_cU - self.x_muU)@U.T
+		self.change = x_c - z_mu_local - (self.x_cU - self.x_muU)@U.T
+
+		self.z_mu = z_mu
+		self.z_norm = z_norm
 
 		# TESTING VAR: to use cross terms of second fundamental form
 		# NOTE: ALSO NEED TO CHANGE IN cc.py IF CHANGING
@@ -65,6 +72,8 @@ class GLayer(nn.Module):
 
 		# returns: tensor of shape N x D
 		N = Z.shape[0]
+
+		Z = Z*self.z_norm + self.z_mu
 
 		ZU = Z@self.U
 		Z_norm2 = (Z-self.x_mu).pow(2).sum(dim=1, keepdim=True)
