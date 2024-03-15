@@ -12,7 +12,7 @@ from torchvision import transforms
 
 import flatnet.train as train
 from models.vae import train_vanilla_vae, train_beta_vae, train_factor_vae
-from tools.manifold_generator import Manifold
+from tools.randman import RandMan
 # from tools.randman import RandMan
 
 # magic argparser library thank you github.com/brentyi
@@ -231,7 +231,7 @@ if __name__ == "__main__":
 	elif args.dataset == "random-manifold":
 		N = args.N
 		D = args.D
-		manifold = Manifold(D, args.d)
+		manifold = RandMan(D, args.d)
 
 		X = manifold.generateSample(N)
 		print(f'X shape : {X.shape}')
