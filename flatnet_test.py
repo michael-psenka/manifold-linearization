@@ -266,7 +266,7 @@ if __name__ == "__main__":
 
 	if args.model == 'flatnet':
 		# cProfile.run('flatnet.train(X)')
-		f, g = train(X)
+		f, g = train(X, n_iter=args.n_iters)
 	elif args.model == "vae":
 		f, g = train_vanilla_vae(X)
 	elif args.model == "betavae":
