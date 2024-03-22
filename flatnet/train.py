@@ -213,6 +213,18 @@ def train(X,
 
             # test for convergence
             Z_new = f_layer(Z)
+
+            # add centering and normalization to manifold
+            z_mu = Z_new.mean(dim=0, keepdim=True)
+            # normalize by max norm of features
+            z_norm = (Z_new - z_mu).norm(dim=1).max()
+
+            f_layer = flatnet_nn.FLayer(U, z_mu_local, gamma, z_mu, z_norm, alpha)
+            g_layer = flatnet_nn.GLayer(U, V, z_mu_local, z_c, gamma, z_mu, z_norm, alpha)
+
+            # test for convergence
+            Z_new = f_layer(Z)
+            
             if (Z_new - Z).pow(2).mean().sqrt() < 1e-4:
                 # if we don't make any progress, don't add layer. However, we only
                 # count convergence once radius is at its maximum
