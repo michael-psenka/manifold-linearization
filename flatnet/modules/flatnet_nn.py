@@ -76,7 +76,7 @@ class GLayer(nn.Module):
 		Z = Z*self.z_norm + self.z_mu
 
 		ZU = Z@self.U
-		Z_norm2 = (Z-self.x_mu).pow(2).sum(dim=1, keepdim=True)
+		Z_norm2 = (Z-self.z_mu_local).pow(2).sum(dim=1, keepdim=True)
 		ZU_norm2 = (ZU - self.x_muU).pow(2).sum(dim=1, keepdim=True)
 		kernel = kernel_inv(Z_norm2, ZU_norm2, self.gamma, self.alpha)
 		# self.kernel = kernel
