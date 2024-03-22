@@ -50,7 +50,7 @@ class Args:
 	""" Number of training datapoints to use. Note this will not effect some
 	 datasets, such as MNIST """
 
-	n_iters: int = 1000 # Number of iterations to run the FlatNet algorithm for
+	n_iter: int = 1000 # Number of iterations to run the FlatNet algorithm for
 
 	d_target: int = 1 # dimension we want to flatten the data to
 
@@ -266,7 +266,7 @@ if __name__ == "__main__":
 
 	if args.model == 'flatnet':
 		# cProfile.run('flatnet.train(X)')
-		f, g = train(X, n_iter=args.n_iters)
+		f, g = train(X, n_iter=args.n_iter)
 	elif args.model == "vae":
 		f, g = train_vanilla_vae(X)
 	elif args.model == "betavae":
