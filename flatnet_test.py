@@ -261,7 +261,8 @@ if __name__ == "__main__":
 	# center and scale data. not explicitly needed for flatnet, but helps numerically
 	X_mean = torch.mean(X, dim=0)
 	X = X - X_mean
-	X_norm = X.pow(2).mean().sqrt() #expeded norm of gaussian is sqrt(D)
+	# X_norm = X.pow(2).mean().sqrt() #expeded norm of gaussian is sqrt(D)
+	X_norm = X.norm(dim=1).max() #expeded norm of gaussian is sqrt(D)
 	X = X / X_norm
 
 	if args.model == 'flatnet':
