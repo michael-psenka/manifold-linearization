@@ -54,7 +54,7 @@ def train(X,
        n_stop_to_converge=10,  # how many times of no progress do we call convergence?
        n_iter=500,  # number of flattening steps to perform
        n_iter_inner=1000,  # how many max steps for inner optimization of U, V
-       thres_recon=1e-4,  # threshold for reconstruction loss being good enough
+       thres_recon=1e-5,  # threshold for reconstruction loss being good enough
        alpha_max=0.5,  # global parameter for kernel
        r_dimcheck_coeff=0.15,  # # radius for checking dimension.
        max_error_dimcheck_ratio=0.3,  # max l0 error with respect to r_dimcheck to stop dimension search
@@ -202,14 +202,9 @@ def train(X,
             kernel_pre = torch.exp(-gamma * (Z - z_c).pow(2).sum(dim=1, keepdim=True))
             z_mu_local = (Z * kernel_pre).sum(dim=0, keepdim=True) / kernel_pre.sum()
 
-            # add centering and normalization to manifold
-            z_mu = Z.mean(dim=0, keepdim=True)
-            # normalize by max norm of features
-            z_norm = (Z - z_mu).norm(dim=1).max()
             
-
-            f_layer = flatnet_nn.FLayer(U, z_mu_local, gamma, z_mu, z_norm, alpha)
-            g_layer = flatnet_nn.GLayer(U, V, z_mu_local, z_c, gamma, z_mu, z_norm, alpha)
+            f_layer = flatnet_nn.FLayer(U, z_mu_local, gamma, alpha)
+            g_layer = flatnet_nn.GLayer(U, V, z_mu_local, z_c, gamma, alpha)
 
             # test for convergence
             Z_new = f_layer(Z)
@@ -219,12 +214,12 @@ def train(X,
             # normalize by max norm of features
             z_norm = (Z_new - z_mu).norm(dim=1).max()
 
-            f_layer = flatnet_nn.FLayer(U, z_mu_local, gamma, z_mu, z_norm, alpha)
-            g_layer = flatnet_nn.GLayer(U, V, z_mu_local, z_c, gamma, z_mu, z_norm, alpha)
+            f_layer.set_normalization(z_mu, z_norm)
+            g_layer.set_normalization(z_mu, z_norm)
 
-            # test for convergence
-            Z_new = f_layer(Z)
-            
+            # apply normalization forward
+            Z_new = (Z_new - z_mu) / z_norm
+            # check for convergence
             if (Z_new - Z).pow(2).mean().sqrt() < 1e-4:
                 # if we don't make any progress, don't add layer. However, we only
                 # count convergence once radius is at its maximum

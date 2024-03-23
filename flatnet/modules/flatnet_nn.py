@@ -15,7 +15,7 @@ class FlatteningNetwork(nn.Module):
 		self.network.add_module(name, nn_module)
 
 class FLayer(nn.Module):
-	def __init__(self, U, z_mu_local, gamma, z_mu, z_norm, alpha=1):
+	def __init__(self, U, z_mu_local, gamma, alpha=1, z_mu=0, z_norm=1):
 		super(FLayer, self).__init__()
 		self.U = U
 		self.D, self.k = U.shape
@@ -40,10 +40,14 @@ class FLayer(nn.Module):
 		Z = (Z - self.z_mu)/self.z_norm
 
 		return Z
+	
+	def set_normalization(self, z_mu, z_norm):
+		self.z_mu = z_mu
+		self.z_norm = z_norm
 
 
 class GLayer(nn.Module):
-	def __init__(self, U, V, z_mu_local, x_c, gamma, z_mu, z_norm, alpha=1):
+	def __init__(self, U, V, z_mu_local, x_c, gamma, alpha=1, z_mu=0, z_norm=1):
 		super(GLayer, self).__init__()
 		self.U = U
 		self.V = V
@@ -94,6 +98,11 @@ class GLayer(nn.Module):
 		Xhat = Z + kernel*(self.change + (H_input)@(self.V).T)
 
 		return Xhat
+	
+	def set_normalization(self, z_mu, z_norm):
+		self.z_mu = z_mu
+		self.z_norm = z_norm
+		
 # implementation of secant method. converge once step size of all
 # below machine precision
 # TODO: look into if this inversion is well-conditioned
