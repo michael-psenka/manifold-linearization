@@ -51,7 +51,7 @@ def exit_handler():
 
 # main training loop
 def train(X,
-       n_stop_to_converge=10,  # how many times of no progress do we call convergence?
+       n_stop_to_converge=3,  # how many times of no progress do we call convergence?
        n_iter=500,  # number of flattening steps to perform
        n_iter_inner=1000,  # how many max steps for inner optimization of U, V
        thres_recon=1e-5,  # threshold for reconstruction loss being good enough
@@ -82,6 +82,10 @@ def train(X,
     edm_max = EDM_X.max()
     edm_min = EDM_X[EDM_X > 0].min()
 
+    EDM_X_inf = EDM_X.clone()
+    EDM_X_inf[EDM_X_inf == 0] = torch.inf
+    edm_maxmin = EDM_X_inf.min(dim=1).values.max()
+
     # radius for checking dimension. Should be as small as possible,
     # but big enough that at every point there's at least one sample
     # along every intrinsic dimension
@@ -96,7 +100,6 @@ def train(X,
     r_midpoint = 0.5 * (r_min + r_max)
     # minimum step size for determining optimal radius
     r_step_min = r_step_min_coeff * edm_min
-
     # #################### TRACKING VARIABLES ####################
     # track previous intrinsic dimension to avoid redundant searches
     d_prev = 1
@@ -125,40 +128,100 @@ def train(X,
 
         # create array to store frames
         frames = []
-
+    r_choice = 0.2 * edm_max
     # ################ MAIN LOOP #########################
     with trange(n_iter, unit="iters") as pbar:
         for j in pbar:
+            if len(Z) == 0:
+                breakpoint()
             # if j % 20 == 0:
             # 	plt.scatter(Z[:,0].detach().numpy(), Z[:,1].detach().numpy())
             # 	plt.show()
 
             # STEP 0: stochastically choose center of the neighborhood to
             # flatten and reconstruct
-            choice = torch.randint(N, (1,))
-            z_c = Z[choice, :]
+            if j==0:
+                choice = torch.randint(N, (1,))
+                local_Z = torch.empty(0, D)
+                choice_set = set()
+                last_n_choice = 0
+                Z_todo = torch.arange(N)
+            else:
+                if len(Z) == 0:
+                    breakpoint()
+                if converge_counter >= n_stop_to_converge:
+                    print('Converged, ', len(Z_todo), len(choice_set))
+                    converge_counter = 0
+                    EDM_X[list(choice_set), :] = torch.inf
+                    EDM_X[:, list(choice_set)] = torch.inf                    
+                    last_n_choice = 0
+                    Z_todo = torch.tensor(list(set(Z_todo.tolist())-choice_set))
+                    choice_set = set()
+                    choice = torch.randint(len(Z_todo), (1,))
+                    choice = Z_todo[choice]
+                    local_Z = torch.empty(0, D)
+                else:
+                    print('111')
+                    gamma = log2 / (r_choice ** 2)
+                    kernel_choice = 1-torch.exp(-gamma * (Z - z_c).pow(2).sum(dim=1, keepdim=True))
+                    mask = (EDM_X[choice, :] < r_choice).flatten() * kernel_choice.flatten()
+                    if mask.sum()==0:
+                        EDM_X[choice, :] = torch.inf
+                        EDM_X[:, choice] = torch.inf
+                        last_n_choice = 0
+                        Z_todo = torch.tensor(list(set(Z_todo.tolist())-choice_set))
+                        if len(Z_todo)==0:
+                            break
+                        choice = torch.randint(len(Z_todo), (1,))
+                        choice = Z_todo[choice]
+                        local_Z = torch.empty(0, D)
+                        choice_set = set()
+                    else:
+                        mask=mask/mask.sum()
+                        try:
+                            choice = torch.multinomial(mask, 1)
+                        except:
+                            breakpoint()
+            if len(Z) == 0:
+                breakpoint()
 
+            mask = (EDM_X[choice, :] < r_choice).flatten()
+            z_c = Z[choice, :]
+            choice_set.update(mask.nonzero().flatten().tolist())
+            bool_converge=(len(choice_set) == last_n_choice)
+            last_n_choice = len(choice_set)
+            local_Z = Z[list(choice_set), :].clone()
+            if len(choice_set) == 0:
+                breakpoint()
+            if len(Z) == 0:
+                breakpoint()
             # STEP 1: find minimal dimension d we can flatten neighborhood
             # to and still be able to reconstruct
 
             # note d is implicitly returned, as U, V are of shape (D, d)
-            U, loss_rdimcheck = find_d(Z, z_c, r_dimcheck, n_iter_inner, d_prev, max_error=thres_recon, max_error_dimcheck_ratio=max_error_dimcheck_ratio)
+                
 
+            U, loss_rdimcheck = find_d(local_Z, z_c, r_dimcheck, n_iter_inner, d_prev, max_error=thres_recon, max_error_dimcheck_ratio=max_error_dimcheck_ratio)
+            if len(Z) == 0:
+                breakpoint()
             # STEP 2: use secant method to find maximal radius that achieves
             # desired reconstruction loss
 
             # get needed second observation
-            U, V, loss_rmidpoint = opt_UV(Z, z_c, U, n_iter_inner, r=r_midpoint)
-
+            U, V, loss_rmidpoint = opt_UV(local_Z, z_c, U, n_iter_inner, r=r_midpoint)
+            if len(Z) == 0:
+                breakpoint()
             # radius optimization
             # begin secant method (note we use log loss for numerical reasons)
             log_thres_recon = torch.log(torch.Tensor([thres_recon]))
             r_m2 = r_dimcheck
             f_m2 = torch.log(loss_rdimcheck) - log_thres_recon
             r_m1 = (r_min + r_max) / 2
-            f_m1 = torch.log(loss_rmidpoint) - log_thres_recon
+            f_m1 = torch.log(loss_rmidpoint + 1e-10) - log_thres_recon
 
             for _ in range(n_iter_rsearch):
+                if len(Z) == 0:
+                    breakpoint()
 
                 # threshold denominator for numerical stability
                 f_diff = f_m1 - f_m2
@@ -169,15 +232,16 @@ def train(X,
                         f_diff = -1e-6
 
                 r = r_m1 - (r_m1 - r_m2) / f_diff * f_m1
-
                 # if we reach either boundary, threshold and exit
                 if r < r_min:
                     r = r_min
                 elif r > r_max:
                     r = r_max
 
-                U, V, loss_r = opt_UV(Z, z_c, U, n_iter_inner, r=r)
+                U, V, loss_r = opt_UV(local_Z, z_c, U, n_iter_inner, r=r)
                 f_r = torch.log(loss_r) - log_thres_recon
+                if len(Z) == 0:
+                    breakpoint()
 
                 r_m2 = r_m1.clone()
                 f_m2 = f_m1.clone()
@@ -197,17 +261,24 @@ def train(X,
             Z = Z.detach()
             U = U.detach().clone()
             V = V.detach().clone()
-
+            if len(Z) == 0:
+                breakpoint()
             gamma = float(np.log(2)) / (r.item() ** 2)
-            kernel_pre = torch.exp(-gamma * (Z - z_c).pow(2).sum(dim=1, keepdim=True))
-            z_mu_local = (Z * kernel_pre).sum(dim=0, keepdim=True) / kernel_pre.sum()
+            kernel_pre = torch.exp(-gamma * (local_Z - z_c).pow(2).sum(dim=1, keepdim=True))
+            z_mu_local = (local_Z * kernel_pre).sum(dim=0, keepdim=True) / kernel_pre.sum()
+            if(torch.isnan(kernel_pre).any()):
+                print("kernel_pre nan")
+                breakpoint()
 
-            
-            f_layer = flatnet_nn.FLayer(U, z_mu_local, gamma, alpha)
-            g_layer = flatnet_nn.GLayer(U, V, z_mu_local, z_c, gamma, alpha)
 
+            f_layer = flatnet_nn.FLayer(U, z_mu_local, gamma, alpha, choice_index=torch.tensor(list(choice_set)))
+            g_layer = flatnet_nn.GLayer(U, V, z_mu_local, z_c, gamma, alpha, choice_index=torch.tensor(list(choice_set)))
+            if len(Z) == 0:
+                breakpoint()
             # test for convergence
             Z_new = f_layer(Z)
+            if len(Z) == 0:
+                breakpoint()
 
             # add centering and normalization to manifold
             z_mu = Z_new.mean(dim=0, keepdim=True)
@@ -223,26 +294,34 @@ def train(X,
             if (Z_new - Z).pow(2).mean().sqrt() < 1e-4:
                 # if we don't make any progress, don't add layer. However, we only
                 # count convergence once radius is at its maximum
-                if r.item() == r_max:
+                if r.item() == r_max and bool_converge:
                     converge_counter += 1
-                    if converge_counter >= n_stop_to_converge:
+                    if converge_counter >= n_stop_to_converge and len(local_Z)==len(Z_todo):
                         break
                 else:
                     converge_counter = 0
             else:
+                if len(Z) == 0:
+                    breakpoint()
                 converge_counter = 0
                 f.add_operation(f_layer)
                 g.add_operation(g_layer)
                 d_prev = U.shape[1]
                 # only update representation if we add the layer
+                if Z_new[0, 0] ==torch.tensor(float('nan')):
+                    breakpoint()
                 Z = Z_new.clone()
+                if len(Z) == 0:
+                    breakpoint()
 
                 # save gif frame
                 if save_gif:
                     if D == 2:
                         fig, ax = plt.subplots()
+                        ax.add_artist(plt.Circle((z_c[0, 0].detach().numpy(), z_c[0, 1].detach().numpy()), r.item(), fill=False))
                         ax.scatter(Z[:, 0].detach().numpy(), Z[:, 1].detach().numpy())
-                        ax.axis('off')
+                        ax.scatter(z_c[0, 0].detach().numpy(), z_c[0, 1].detach().numpy(), c='r')
+                        ax.axis('on')
                         for spine in ax.spines.values():
                             spine.set_visible(False)
                     elif D == 3:
@@ -391,6 +470,8 @@ def find_d(Z, z_c, r_dimcheck, n_iter_inner, d_prev, max_error, max_error_dimche
     # We find the minimial d by iteratively fitting a model
     # for some size d, then increase d and repeat if the max
     # reconstruction error is too large
+    if len(Z) == 0:
+        breakpoint()
 
     max_error = max_error_dimcheck_ratio * r_dimcheck
 
@@ -428,7 +509,10 @@ def find_d(Z, z_c, r_dimcheck, n_iter_inner, d_prev, max_error, max_error_dimche
         d = U.shape[1]
         idx_triu = torch.triu_indices(d, d)
         H_input = H_input[:, idx_triu[0, :], idx_triu[1, :]]
-        l0_error = (kernel * (Z_perp - H_input @ V.T)).norm(dim=1).max()
+        try:
+            l0_error = (kernel * (Z_perp - H_input @ V.T)).norm(dim=1).max()
+        except:
+            breakpoint()
         # l2_error = 0.5*(kernel * (Z_perp - H_input @ V.T)).norm(dim=1).pow(2).mean()
         # if achieved desired loss, reduce dimension
         # print(f'd: {d}, error: {l0_error}')
