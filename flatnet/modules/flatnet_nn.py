@@ -4,6 +4,7 @@ class FlatteningNetwork(nn.Module):
 	def __init__(self):
 		super(FlatteningNetwork, self).__init__()
 		self.network = torch.nn.Sequential()
+		self.layer_count = 0
 		
 	def forward(self, X):
 		return self.network(X)
@@ -13,17 +14,25 @@ class FlatteningNetwork(nn.Module):
 		if name == '_':
 			name = f'layer {len(self.network)}'
 		self.network.add_module(name, nn_module)
+		self.layer_count += 1
+	
+	def state_dict(self):
+		# include layer count in state dict
+		return {'network': self.network.state_dict(), 'layer_count': self.layer_count}
+	
+	def load_state_dict(self, state_dict):
+		self.network.load_state_dict(state_dict['network'])
+		self.layer_count = state_dict['layer_count']
 
 class FLayer(nn.Module):
 	def __init__(self, U, z_mu_local, gamma, alpha=1, z_mu=0, z_norm=1):
 		super(FLayer, self).__init__()
-		self.U = U
-		self.D, self.k = U.shape
-		self.z_mu_local = z_mu_local
-		self.gamma = gamma
-		self.alpha = alpha
-		self.z_mu = z_mu
-		self.z_norm = z_norm
+		self.U = nn.Parameter(U)
+		self.z_mu_local = nn.Parameter(z_mu_local)
+		self.gamma = nn.Parameter(torch.tensor(gamma, dtype=torch.float32))
+		self.alpha = nn.Parameter(torch.tensor(alpha, dtype=torch.float32))
+		self.z_mu = nn.Parameter(torch.tensor(z_mu, dtype=torch.float32))
+		self.z_norm = nn.Parameter(torch.tensor(z_norm, dtype=torch.float32))
 
 		
 	def forward(self, X):
@@ -42,39 +51,38 @@ class FLayer(nn.Module):
 		return Z
 	
 	def set_normalization(self, z_mu, z_norm):
-		self.z_mu = z_mu
-		self.z_norm = z_norm
+		self.z_mu = nn.Parameter(z_mu)
+		self.z_norm = nn.Parameter(z_norm)
 
 
 class GLayer(nn.Module):
 	def __init__(self, U, V, z_mu_local, x_c, gamma, alpha=1, z_mu=0, z_norm=1):
 		super(GLayer, self).__init__()
-		self.U = U
-		self.V = V
-		self.D, self.k = U.shape #U, V have same shape
-		self.z_mu_local = z_mu_local
-		self.x_c = x_c
-		self.gamma = gamma
-		self.alpha = alpha
+		self.U = nn.Parameter(U)
+		self.V = nn.Parameter(V)
+		self.z_mu_local = nn.Parameter(z_mu_local)
+		self.x_c = nn.Parameter(x_c)
+		self.gamma = nn.Parameter(torch.tensor(gamma, dtype=torch.float32))
+		self.alpha = nn.Parameter(torch.tensor(alpha, dtype=torch.float32))
 
 		# computations we don't need to repeat every evaluation
-		self.x_muU = z_mu_local @ U
-		self.x_cU = x_c @ U
-		self.change = x_c - z_mu_local - (self.x_cU - self.x_muU)@U.T
+		self.x_muU = nn.Parameter(z_mu_local @ U)
+		self.x_cU = nn.Parameter(x_c @ U)
+		self.change = nn.Parameter(x_c - z_mu_local - (self.x_cU - self.x_muU)@U.T)
 
-		self.z_mu = z_mu
-		self.z_norm = z_norm
-
-		# TESTING VAR: to use cross terms of second fundamental form
-		# NOTE: ALSO NEED TO CHANGE IN cc.py IF CHANGING
-		self.use_cross_terms = True
+		self.z_mu = nn.Parameter(torch.tensor(z_mu, dtype=torch.float32))
+		self.z_norm = nn.Parameter(torch.tensor(z_norm, dtype=torch.float32))
 
 		
 	def forward(self, Z):
+		# TESTING VAR: to use cross terms of second fundamental form
+		# NOTE: ALSO NEED TO CHANGE IN cc.py IF CHANGING THIS
+		use_cross_terms = True
 		# Z: tensor of shape N x D, a batch of N points in D dimensions
 		# that we want to flatten by 1 step
 
 		# returns: tensor of shape N x D
+		k=self.U.shape[1]
 		N = Z.shape[0]
 
 		Z = Z*self.z_norm + self.z_mu
@@ -87,9 +95,9 @@ class GLayer(nn.Module):
 
 
 		coord = ZU - self.x_cU
-		if self.use_cross_terms:
-			H_input = torch.bmm(coord.reshape((N,self.k,1)), coord.reshape((N,1,self.k)))
-			idx_triu = torch.triu_indices(self.k,self.k)
+		if use_cross_terms:
+			H_input = torch.bmm(coord.reshape((N,k,1)), coord.reshape((N,1,k)))
+			idx_triu = torch.triu_indices(k,k)
 			H_input = H_input[:,idx_triu[0,:],idx_triu[1,:]]
 
 		else:
@@ -100,8 +108,8 @@ class GLayer(nn.Module):
 		return Xhat
 	
 	def set_normalization(self, z_mu, z_norm):
-		self.z_mu = z_mu
-		self.z_norm = z_norm
+		self.z_mu = nn.Parameter(z_mu)
+		self.z_norm = nn.Parameter(z_norm)
 		
 # implementation of secant method. converge once step size of all
 # below machine precision

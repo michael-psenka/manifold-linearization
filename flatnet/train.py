@@ -126,6 +126,8 @@ def train(X,
         # create array to store frames
         frames = []
 
+
+    print(f'\nStart layer-wise training')
     # ################ MAIN LOOP #########################
     with trange(n_iter, unit="iters") as pbar:
         for j in pbar:
@@ -204,7 +206,9 @@ def train(X,
 
             
             f_layer = flatnet_nn.FLayer(U, z_mu_local, gamma, alpha)
+            f_layer.requires_grad_(False)
             g_layer = flatnet_nn.GLayer(U, V, z_mu_local, z_c, gamma, alpha)
+            g_layer.requires_grad_(False)
 
             # test for convergence
             Z_new = f_layer(Z)
@@ -271,6 +275,31 @@ def train(X,
         for file_name in os.listdir('flatnet_gif_frames'):
             os.remove(os.path.join('flatnet_gif_frames', file_name))
         os.rmdir('flatnet_gif_frames')
+
+    print(f'Start training decoder globally')
+    f.requires_grad_(False)
+    for i in range(g.layer_count):
+        for name,param in g.network[i].named_parameters():
+            param.requires_grad_(False)
+            if name == 'V':
+                param.requires_grad_(True)
+
+    optimizer = torch.optim.Adam(g.parameters(), lr=0.01)
+
+    with trange(100, unit="iters") as pbar:
+        for i in pbar:
+            optimizer.zero_grad()
+            X_hat = g(f(X))
+            # breakpoint()
+            loss = torch.nn.functional.mse_loss(X_hat, X,reduction='mean')
+            loss.backward()
+            # # add loss to tqdm
+            # tqdm.tqdm.write(f'loss: {loss.item()}')
+
+            pbar.set_postfix({"global_recon": loss.item()})
+            optimizer.step()
+            if loss.item() < 1e-5:
+                break
 
     return f, g
 
