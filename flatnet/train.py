@@ -52,7 +52,7 @@ def exit_handler():
 # main training loop
 def train(X,
        n_stop_to_converge=10,  # how many times of no progress do we call convergence?
-       n_iter=500,  # number of flattening steps to perform
+       n_iter=150,  # number of flattening steps to perform
        n_iter_inner=1000,  # how many max steps for inner optimization of U, V
        thres_recon=1e-5,  # threshold for reconstruction loss being good enough
        alpha_max=0.5,  # global parameter for kernel
@@ -213,18 +213,19 @@ def train(X,
             # test for convergence
             Z_new = f_layer(Z)
 
-            # add centering and normalization to manifold
-            z_mu = Z_new.mean(dim=0, keepdim=True)
-            # normalize by max norm of features
-            z_norm = (Z_new - z_mu).norm(dim=1).max()
+            # # add centering and normalization to manifold
+            # z_mu = Z_new.mean(dim=0, keepdim=True)
+            # # normalize by max norm of features
+            # z_norm = (Z_new - z_mu).norm(dim=1).max()
 
-            f_layer.set_normalization(z_mu, z_norm)
-            g_layer.set_normalization(z_mu, z_norm)
+            # f_layer.set_normalization(z_mu, z_norm)
+            # g_layer.set_normalization(z_mu, z_norm)
 
-            # apply normalization forward
-            Z_new = (Z_new - z_mu) / z_norm
+            # # apply normalization forward
+            # Z_new = (Z_new - z_mu) / z_norm
+            
             # check for convergence
-            if (Z_new - Z).pow(2).mean().sqrt() < 1e-4:
+            if (Z_new - Z).pow(2).mean().sqrt() < 5e-5:
                 # if we don't make any progress, don't add layer. However, we only
                 # count convergence once radius is at its maximum
                 if r.item() == r_max:
@@ -298,8 +299,8 @@ def train(X,
 
             pbar.set_postfix({"global_recon": loss.item()})
             optimizer.step()
-            if loss.item() < 1e-5:
-                break
+            # if loss.item() < 1e-5:
+            #     break
 
     return f, g
 
