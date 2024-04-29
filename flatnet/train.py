@@ -31,8 +31,8 @@ import os
 import atexit
 
 # device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-torch.cuda.set_device(0)
-torch.set_default_tensor_type(torch.cuda.FloatTensor)
+# torch.cuda.set_device(0)
+# torch.set_default_tensor_type(torch.cuda.FloatTensor)
 
 # delete temporary files if we exit too early
 def exit_handler():

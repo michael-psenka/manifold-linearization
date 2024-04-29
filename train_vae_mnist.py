@@ -101,6 +101,7 @@ class ConvDecoder(nn.Module):
         out = self.fc(z)
         out = out.view(out.shape[0], *self.base_size)
         out = self.deconvs(out)
+        # breakpoint()
         return out
 
 
@@ -118,7 +119,7 @@ class ConvEncoder(nn.Module):
             nn.ReLU(),
             nn.Conv2d(128, 256, 3, stride=2, padding=1),
         )
-        conv_out_dim = input_shape[1] // 8 * input_shape[2] // 8 * 256
+        conv_out_dim = ((input_shape[1]-1) // 8+1) * ((input_shape[2]-1) // 8 +1) * 256
         self.fc = nn.Linear(conv_out_dim, 2 * latent_dim)
 
     def forward(self, x):
@@ -160,27 +161,33 @@ class ConvVAE(nn.Module):
 
 if __name__ == '__main__':
 
-    epochs = 10
+    epochs = 20
     lr = 1e-3
     batch_size=128
     grad_clip = None
 
     # load cifar-10
 
-    transform = transforms.Compose([transforms.ToTensor()])
-    train_data = datasets.CIFAR10('data', train=True, download=True, transform=transform)
-    test_data = datasets.CIFAR10('data', train=False, download=True, transform=transform)
+    # 28*28 to 32*32
+    transform = transforms.Compose([transforms.Resize(32)])
+    transform_to28 = transforms.Resize(28)
+    train_data = datasets.MNIST(root='./torch-dataset', train=True,download=True,  transform=transform)
+    test_data = datasets.MNIST(root='./torch-dataset', train=False,download=True,  transform=transform)
 
-    # convert CIFAR10 objects to numpy arrays
-    train_data = np.array(train_data.data)
-    test_data = np.array(test_data.data)
+
+    train_data = np.array(transform(train_data.data))
+    test_data = np.array(transform(test_data.data))
+
+    train_data = train_data[:,:,:,None]
+    test_data = test_data[:,:,:,None]
 
     train_data = (np.transpose(train_data, (0, 3, 1, 2)) / 255.).astype('float32')
     test_data = (np.transpose(test_data, (0, 3, 1, 2)) / 255.).astype('float32')
+    # breakpoint()
 
     # train_data = torch.from_numpy(train_data).to(device)
 
-    model = ConvVAE((3, 32, 32), 32).to(device)
+    model = ConvVAE((1, 32, 32), 32).to(device)
     # loader_generator = torch.Generator(device=device)
     train_loader = data.DataLoader(train_data, batch_size=batch_size, shuffle=True)
     test_loader = data.DataLoader(test_data, batch_size=batch_size)
@@ -202,8 +209,9 @@ if __name__ == '__main__':
             test_losses[k].append(test_loss[k])
 
     # save the model
-    os.makedirs('vae_weights', exist_ok=True)
-    torch.save(model.state_dict(), os.path.join('vae_weights', 'vae_model.pth'))
+    folder = 'vae_weights_mnist'
+    os.makedirs(folder, exist_ok=True)
+    torch.save(model.state_dict(), os.path.join(folder, 'vae_model.pth'))
 
 
 
@@ -212,8 +220,9 @@ if __name__ == '__main__':
         x = 2 * x - 1
         z, _ = model.encoder(x)
         x_recon = torch.clamp(model.decoder(z), -1, 1)
-    reconstructions = torch.stack((x, x_recon), dim=1).view(-1, 3, 32, 32) * 0.5 + 0.5
+    reconstructions = torch.stack((x, x_recon), dim=1).view(-1, 1, 32, 32) * 0.5 + 0.5
     reconstructions = reconstructions.permute(0, 2, 3, 1).cpu().numpy() * 255
+    reconstructions = reconstructions.squeeze(3).astype('uint8')
 
     fig, axes = plt.subplots(5, 10, figsize=(14, 7), subplot_kw={'xticks': [], 'yticks': []})
     for i, ax in enumerate(axes.flat):
