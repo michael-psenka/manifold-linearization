@@ -30,6 +30,10 @@ import imageio
 import os
 import atexit
 
+# device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+torch.cuda.set_device(0)
+torch.set_default_tensor_type(torch.cuda.FloatTensor)
+
 # delete temporary files if we exit too early
 def exit_handler():
     if os.path.exists('flatnet_gif_frames'):
@@ -54,11 +58,11 @@ def train(X,
        n_stop_to_converge=10,  # how many times of no progress do we call convergence?
        n_iter=150,  # number of flattening steps to perform
        n_iter_inner=1000,  # how many max steps for inner optimization of U, V
-       thres_recon=1e-5,  # threshold for reconstruction loss being good enough
+       thres_recon=1e-4,  # threshold for reconstruction loss being good enough
        alpha_max=0.5,  # global parameter for kernel
        r_dimcheck_coeff=0.15,  # # radius for checking dimension.
        max_error_dimcheck_ratio=0.3,  # max l0 error with respect to r_dimcheck to stop dimension search
-       r_min_coeff=0.15,  # minimum allowed radius for each flattening
+       r_min_coeff=0.1,  # minimum allowed radius for each flattening
        r_max_coeff=1.1,  # maximum allowed radius for each flattening
        r_step_min_coeff=1.0,  # max steps to take when finding biggest r
        n_iter_rsearch=1,  # max steps to take when finding biggest r
@@ -278,6 +282,7 @@ def train(X,
         os.rmdir('flatnet_gif_frames')
 
     print(f'Start training decoder globally')
+    
     f.requires_grad_(False)
     for i in range(g.layer_count):
         for name,param in g.network[i].named_parameters():
