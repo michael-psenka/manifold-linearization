@@ -18,13 +18,8 @@ from torchvision import datasets, transforms
 
 import matplotlib.pyplot as plt
 
-# import flatnet
-# from flatnet.modules import flatnet_nn
-import copy
 import tqdm
 import os
-from sklearn.decomposition import PCA
-import gc
 
 # helper training methods
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')

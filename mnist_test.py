@@ -94,7 +94,7 @@ def dim_svd(Z,threshold=svd_Z_threshold):
         num_nonzero_Z = 7
     Z_svd = U_Z[:,:num_nonzero_Z] @ torch.diag(S_Z[:num_nonzero_Z])@Vt_Z[:num_nonzero_Z,:]
     print(f'SVD of learned features: {num_nonzero_Z}')
-    return Z_svd
+    return Z_svd, num_nonzero_Z
 
 def in_F(X_hat, V, Z_mean, Z_var):
     if with_labels:
