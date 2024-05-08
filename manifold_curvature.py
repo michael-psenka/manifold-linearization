@@ -25,10 +25,10 @@ class ManifoldCurvature:
         
     #     return enc_f, dec_g
     
-    def fit(self, X,latent_dim=None, svd_threshold=1, min_dim=1):        
+    def fit(self, X,latent_dim=None, svd_threshold=1, min_dim=1, n_iter=150):       
         X= X.view(X.shape[0], -1)
         _, self.D = X.shape
-        f, g = flatnet.train(X, n_iter=150)
+        f, g = flatnet.train(X, n_iter=n_iter)
         pca = utils.torch_PCA()
         if latent_dim is not None:
             self.d = latent_dim
@@ -65,7 +65,6 @@ class ManifoldCurvature:
             H[j] = torch.autograd.functional.hessian(lambda_func, z_c_latent, create_graph=False).view(self.d, self.d).detach()
             H[j] = torch.diag(H[j])
         return H
-        
 
     def curvature(self, X):
         X = X.view(X.shape[0], -1)

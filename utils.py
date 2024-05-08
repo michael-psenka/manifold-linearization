@@ -12,7 +12,7 @@ class torch_PCA:
     def fit(self, X,latent_dim=None, svd_threshold=1, min_dim=1):
         self.mean_ = X.mean(0)
         X = X - self.mean_
-        U, S, V = torch.linalg.svd(X, full_matrices=False)
+        U, S, V = torch.linalg.svd(X, full_matrices=True)
         if latent_dim is not None:
             self.n_components = latent_dim
         else:
