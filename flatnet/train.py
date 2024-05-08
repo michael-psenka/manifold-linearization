@@ -58,7 +58,7 @@ def train(X,
        n_stop_to_converge=10,  # how many times of no progress do we call convergence?
        n_iter=150,  # number of flattening steps to perform
        n_iter_inner=1000,  # how many max steps for inner optimization of U, V
-       thres_recon=1e-4,  # threshold for reconstruction loss being good enough
+       thres_recon=5e-5,  # threshold for reconstruction loss being good enough
        alpha_max=0.5,  # global parameter for kernel
        r_dimcheck_coeff=0.15,  # # radius for checking dimension.
        max_error_dimcheck_ratio=0.3,  # max l0 error with respect to r_dimcheck to stop dimension search

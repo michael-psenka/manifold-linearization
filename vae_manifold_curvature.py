@@ -5,7 +5,7 @@ import torch.nn.functional as F
 import os
 import numpy as np
 from torchvision import datasets, transforms
-import flatnet
+from flatnet.modules import flatnet_nn
 import matplotlib.pyplot as plt
 from vae_manifold_train import torch_PCA
 
@@ -39,9 +39,6 @@ def cal_curvature(Z,name,f,g,pca):
     Z = Z.view(Z.shape[0], -1)
     N,D = Z.shape
     d = pca.n_components
-    EDM_X = torch.cdist(Z,Z, p=2)
-    edm_max = EDM_X.max()
-    r = 0.1*edm_max
     curvature = torch.zeros(N)
     # print("mapping from R^{d} to R^{D}")
     print(f'Mapping from R^{d} to R^{D}')
@@ -124,7 +121,9 @@ if __name__ == '__main__':
     # reconstructions = reconstructions.squeeze(3)
         
     # evaluate the flatnet
-    f,g = load_weights(weight_folder,pre_name=pre_name)
+    f=flatnet_nn.FlatteningNetwork.load_state_dict(torch.load(os.path.join(weight_folder, f'{pre_name}f.pth')))
+    g=flatnet_nn.FlatteningNetwork.load_state_dict(torch.load(os.path.join(weight_folder, f'{pre_name}g.pth')))
+    # f,g = load_weights(weight_folder,pre_name=pre_name)
     pca = torch_PCA.load(os.path.join(weight_folder, f'{pre_name}pca.pth'))
 
     with torch.no_grad():

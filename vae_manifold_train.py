@@ -9,8 +9,8 @@ import flatnet
 import matplotlib.pyplot as plt
 # from sklearn.decomposition import PCA
 # import pickle
-
-from mnist_test import dim_svd, load_weights,in_F,pre_f
+from flatnet.modules import flatnet_nn
+from mnist_test import dim_svd,in_F,pre_f
 import warnings
 
 warnings.filterwarnings('ignore')
@@ -112,17 +112,17 @@ if __name__ == '__main__':
         mu, log_std = model.encoder(train_data)
         Z= mu
         X, Z_mean, Z_var, V = pre_f(Z)
-        # f,g=flatnet.train(X, n_iter=50, thres_recon=1e-5)
-        f,g = load_weights(folder,pre_name=pre_name)
+        f,g=flatnet.train(X, n_iter=5, thres_recon=1e-5)
+        # f,g = load_weights(folder,pre_name=pre_name)
         _, d=dim_svd(f(X))
         pca = torch_PCA(d)
         pca.fit(f(X))
         pca.save(os.path.join(folder, f'{pre_name}pca.pth'))              
-
         torch.save(f.state_dict(), os.path.join(folder, f'{pre_name}f.pth'))
         torch.save(g.state_dict(), os.path.join(folder,  f'{pre_name}g.pth'))
     else:
-        f,g = load_weights(folder,pre_name=pre_name)
+        f = flatnet_nn.FlatteningNetwork.load_state_dict(torch.load(os.path.join(folder, f'{pre_name}f.pth')))
+        g = flatnet_nn.FlatteningNetwork.load_state_dict(torch.load(os.path.join(folder, f'{pre_name}g.pth')))
 
     # evaluate the flatnet
     with torch.no_grad():

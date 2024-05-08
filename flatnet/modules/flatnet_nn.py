@@ -17,12 +17,34 @@ class FlatteningNetwork(nn.Module):
 		self.layer_count += 1
 	
 	def state_dict(self):
-		# include layer count in state dict
-		return {'network': self.network.state_dict(), 'layer_count': self.layer_count}
+		state_dict = {}
+		state_dict['layer_count'] = self.layer_count
+		state_dict['network'] = {}
+		for i, layer in enumerate(self.network):
+			state_dict['network'][f'layer {i}'] = layer.state_dict()
+		return state_dict
 	
-	def load_state_dict(self, state_dict):
-		self.network.load_state_dict(state_dict['network'])
-		self.layer_count = state_dict['layer_count']
+	@staticmethod
+	def load_state_dict(state_dict):
+		f = FlatteningNetwork()
+		f.layer_count = state_dict['layer_count']
+		for i in range(f.layer_count):
+			layer = state_dict['network'][f'layer {i}']
+			if 'V' in layer:
+				f.add_operation(GLayer(layer['U'], layer['V'], layer['z_mu_local'], layer['x_c'], layer['gamma'], layer['alpha'], layer['z_mu'], layer['z_norm']), f'layer {i}')
+			else:
+				f.add_operation(FLayer(layer['U'], layer['z_mu_local'], layer['gamma'], layer['alpha'], layer['z_mu'], layer['z_norm']), f'layer {i}')
+		return f
+		# # load state dict and create new FlatteningNetwork
+	# 	f = FlatteningNetwork()
+	# 	f.network.load_state_dict(state_dict['network'])
+	# 	f.layer_count = state_dict['layer_count']
+	# 	return f
+	# elf, state_dict):
+	# 	self.network.load_state_dict(state_dict['network'])
+	# 	self.layer_count = state_dict['layer_count']
+		
+
 
 class FLayer(nn.Module):
 	def __init__(self, U, z_mu_local, gamma, alpha=1, z_mu=0, z_norm=1):

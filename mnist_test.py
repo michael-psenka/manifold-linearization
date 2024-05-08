@@ -87,11 +87,11 @@ def pca_latent(Z,figname):
 
     return latent_2d
 
-def dim_svd(Z,threshold=svd_Z_threshold):
+def dim_svd(Z,threshold=svd_Z_threshold,min_dim=1):
     U_Z, S_Z, Vt_Z = torch.linalg.svd(Z, full_matrices=False)
     num_nonzero_Z = torch.sum(S_Z > threshold)
-    if num_nonzero_Z<7:
-        num_nonzero_Z = 7
+    if num_nonzero_Z<min_dim:
+        num_nonzero_Z = min_dim
     Z_svd = U_Z[:,:num_nonzero_Z] @ torch.diag(S_Z[:num_nonzero_Z])@Vt_Z[:num_nonzero_Z,:]
     print(f'SVD of learned features: {num_nonzero_Z}')
     return Z_svd, num_nonzero_Z
@@ -106,18 +106,18 @@ def in_F(X_hat, V, Z_mean, Z_var):
     # X_data_hat = X_data_hat.reshape(X_data_hat.shape[0], 28, 28)
     return X_data_hat
 
-def load_weights(weight_folder,pre_name=''):
-    f = flatnet_nn.FlatteningNetwork()
-    g = flatnet_nn.FlatteningNetwork()
-    f_weights = torch.load(os.path.join(weight_folder, f'{pre_name}f.pth'))
-    g_weights = torch.load(os.path.join(weight_folder, f'{pre_name}g.pth'))
+# def load_weights(weight_folder,pre_name=''):
+#     f = flatnet_nn.FlatteningNetwork()
+#     g = flatnet_nn.FlatteningNetwork()
+#     f_weights = torch.load(os.path.join(weight_folder, f'{pre_name}f.pth'))
+#     g_weights = torch.load(os.path.join(weight_folder, f'{pre_name}g.pth'))
 
-    for i in range(f_weights['layer_count']):
-        f_layer = flatnet_nn.FLayer(f_weights['network'][f'layer {i}.U'], f_weights['network'][f'layer {i}.z_mu_local'], f_weights['network'][f'layer {i}.gamma'], f_weights['network'][f'layer {i}.alpha'], f_weights['network'][f'layer {i}.z_mu'], f_weights['network'][f'layer {i}.z_norm'])
-        g_layer = flatnet_nn.GLayer(g_weights['network'][f'layer {i}.U'], g_weights['network'][f'layer {i}.V'], g_weights['network'][f'layer {i}.z_mu_local'], g_weights['network'][f'layer {i}.x_c'], g_weights['network'][f'layer {i}.gamma'], g_weights['network'][f'layer {i}.alpha'], g_weights['network'][f'layer {i}.z_mu'], g_weights['network'][f'layer {i}.z_norm'])
-        f.add_operation(f_layer)
-        g.add_operation(g_layer)
-    return f, g
+#     for i in range(f_weights['layer_count']):
+#         f_layer = flatnet_nn.FLayer(f_weights['network'][f'layer {i}.U'], f_weights['network'][f'layer {i}.z_mu_local'], f_weights['network'][f'layer {i}.gamma'], f_weights['network'][f'layer {i}.alpha'], f_weights['network'][f'layer {i}.z_mu'], f_weights['network'][f'layer {i}.z_norm'])
+#         g_layer = flatnet_nn.GLayer(g_weights['network'][f'layer {i}.U'], g_weights['network'][f'layer {i}.V'], g_weights['network'][f'layer {i}.z_mu_local'], g_weights['network'][f'layer {i}.x_c'], g_weights['network'][f'layer {i}.gamma'], g_weights['network'][f'layer {i}.alpha'], g_weights['network'][f'layer {i}.z_mu'], g_weights['network'][f'layer {i}.z_norm'])
+#         f.add_operation(f_layer)
+#         g.add_operation(g_layer)
+#     return f, g
 
 
 
