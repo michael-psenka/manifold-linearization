@@ -28,7 +28,7 @@ class ManifoldCurvature:
     def fit(self, X,latent_dim=None, svd_threshold=1, min_dim=1, n_iter=150):       
         X= X.view(X.shape[0], -1)
         _, self.D = X.shape
-        f, g = flatnet.train(X, n_iter=n_iter)
+        f, g = flatnet.train(X, n_iter=n_iter, save_gif=True)
         pca = utils.torch_PCA()
         if latent_dim is not None:
             self.d = latent_dim
@@ -59,7 +59,7 @@ class ManifoldCurvature:
         assert z_c.shape[1] == self.D
         with torch.no_grad():
             z_c_latent = self.func_f(z_c)
-        H = torch.zeros(self.D, self.d, self.d)
+        H = torch.zeros(self.D, self.d, self.d) # D*d
         for j in range(self.D):
             lambda_func = lambda xx: self.func_g(xx)[j]
             H[j] = torch.autograd.functional.hessian(lambda_func, z_c_latent, create_graph=False).view(self.d, self.d).detach()
@@ -72,11 +72,23 @@ class ManifoldCurvature:
         curvature = torch.zeros(X.shape[0])
         for i in tqdm.tqdm(range(X.shape[0])):
             z_c = X[i]
-            H = self.hessian(z_c)
-            trace = torch.zeros(self.D)
-            # for j in range(self.D):
-            #     trace[j] = torch.sum(H[j])
-            # curvature[i] = trace.max()
-            curvature[i] = torch.sum(H)
+            He = self.hessian(z_c)
+            H = torch.zeros(self.D)
+            for j in range(self.D):
+                H[j] = He[j][0][0]
+                # H[j] = He[j].sum()
+            H = H.unsqueeze(1)
+            J = self.tangent_space(z_c)
+            Q, R = torch.qr(J)
+            # breakpoint()
+            Proj = torch.mm(Q, Q.t())
+            H = (torch.eye(self.D) - Proj) @ H
+
+
+            # trace = torch.zeros(self.D)
+            # # for j in range(self.D):
+            # #     trace[j] = torch.sum(H[j])
+            # # curvature[i] = trace.max()
+            curvature[i] = H.sum()
         return curvature      
         

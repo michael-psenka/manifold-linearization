@@ -7,7 +7,7 @@ from flatnet.modules import flatnet_nn
 import manifold_curvature as mc
 
 # create sine wave dataset
-t = torch.linspace(0, 2*torch.pi, 50)
+t = torch.linspace(0, 6*torch.pi, 100)
 y = torch.sin(t)
 
 # format dataset of N points of dimension D as (N, D) matrix
@@ -20,7 +20,7 @@ X = X - X.mean(dim=0)
 X = X / X.norm(dim=1).max()
 
 sinMC = mc.ManifoldCurvature()
-sinMC.fit(X, latent_dim=1)
+sinMC.fit(X, latent_dim=1,n_iter=100)
 
 middle_point = X[len(X)//2]
 tangent_space = sinMC.tangent_space(middle_point)
