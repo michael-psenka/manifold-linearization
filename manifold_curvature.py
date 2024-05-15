@@ -29,6 +29,7 @@ class ManifoldCurvature:
         X= X.view(X.shape[0], -1)
         _, self.D = X.shape
         f, g = flatnet.train(X, n_iter=n_iter, save_gif=True)
+        # breakpoint()
         pca = utils.torch_PCA()
         if latent_dim is not None:
             self.d = latent_dim
@@ -46,6 +47,8 @@ class ManifoldCurvature:
             return x_hat.squeeze(0)
         self.func_f = enc_f
         self.func_g = dec_g
+        # breakpoint()
+        return enc_f, dec_g
     
     def tangent_space(self, z_c):
         z_c = z_c.view(1, -1)
@@ -70,6 +73,8 @@ class ManifoldCurvature:
         X = X.view(X.shape[0], -1)
         assert X.shape[1] == self.D
         curvature = torch.zeros(X.shape[0])
+        H_all = torch.zeros(X.shape[0], self.D)
+        J_all = torch.zeros(X.shape[0], self.D, self.d)
         for i in tqdm.tqdm(range(X.shape[0])):
             z_c = X[i]
             He = self.hessian(z_c)
@@ -77,18 +82,24 @@ class ManifoldCurvature:
             for j in range(self.D):
                 H[j] = He[j][0][0]
                 # H[j] = He[j].sum()
+            
+            
             H = H.unsqueeze(1)
             J = self.tangent_space(z_c)
+            J_all[i] = J
             Q, R = torch.qr(J)
             # breakpoint()
             Proj = torch.mm(Q, Q.t())
             H = (torch.eye(self.D) - Proj) @ H
-
+            H_all[i] = H.squeeze()
 
             # trace = torch.zeros(self.D)
             # # for j in range(self.D):
             # #     trace[j] = torch.sum(H[j])
             # # curvature[i] = trace.max()
-            curvature[i] = H.sum()
-        return curvature      
+            # abs_H = torch.abs(H)
+            # curvature[i] = H[abs_H.argmax()]
+            # curvature[i] = H.max()
+            curvature[i] = H.norm()
+        return curvature, H_all, J_all
         
