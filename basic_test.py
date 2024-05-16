@@ -56,7 +56,7 @@ plt.quiver(*X_hat.T, j_all[:, 0,0], j_all[:, 1,0], color='r', scale=10, width=0.
 # smaller points
 plt.scatter(X1_hat[:, 0], X1_hat[:, 1], s=0.5)
 # plt.scatter(X[:, 0], X[:, 1])
-plt.axis('on')
+plt.axis('equal')
 plt.savefig('curvature_vector.png', dpi=800)
 plt.clf()
 
