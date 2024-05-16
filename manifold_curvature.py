@@ -69,13 +69,19 @@ class ManifoldCurvature:
             H[j] = torch.diag(H[j])
         return H
 
-    def curvature(self, X):
+    def curvature(self, X, only_jacobian=False):
         X = X.view(X.shape[0], -1)
         assert X.shape[1] == self.D
         curvature = torch.zeros(X.shape[0])
         H_all = torch.zeros(X.shape[0], self.D)
         J_all = torch.zeros(X.shape[0], self.D, self.d)
         for i in tqdm.tqdm(range(X.shape[0])):
+            if only_jacobian:
+                z_c = X[i]
+                J = self.tangent_space(z_c)
+                J_all[i] = J
+                # curvature[i] = J.norm()
+                continue
             z_c = X[i]
             He = self.hessian(z_c)
             H = torch.zeros(self.D)
