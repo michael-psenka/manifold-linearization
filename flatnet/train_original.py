@@ -1,25 +1,61 @@
+# *****************************************************************************
+#  CURVATURE COMPRESSION
+# *****************************************************************************
+
+
+# Important lines:
+# *---------------------------------------------------------*
+
+# 52: main training loop
+# 153: radius optimization
+# 267: optimize flattening/reconstruction pair per layer
+# 376: automatically finding intrinsic dimension
+
+# *---------------------------------------------------------*
+
+import numpy as np
 import torch
 
-from .modules import flatnet_nn
-import numpy as np
+# used for optimizing over Stiefel
 import geoopt
-import os
-import matplotlib.pyplot as plt
-import imageio
-import atexit
+
+from .modules import flatnet_nn
+
 from tqdm import trange
 
+# for saving gifs
+import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
+import imageio
+import os
+import atexit
+
+# delete temporary files if we exit too early
 def exit_handler():
     if os.path.exists('flatnet_gif_frames'):
         for file_name in os.listdir('flatnet_gif_frames'):
             os.remove(os.path.join('flatnet_gif_frames', file_name))
         os.rmdir('flatnet_gif_frames')
 
-def train(X,n_stop_to_converge=10,  # how many times of no progress do we call convergence?
-       n_iter=50,  # number of flattening steps to perform
+# ******************************************************************************
+# This is the primary script for the curvature compression algorithm.
+# Input: data matrix X of shape (n,D), where D is the embedding dimension and
+# n is the number of data points;
+# d_desired is the desired dimension to flatten X onto
+
+# Output: a neural network f: R^D -> R^d, where d is the intrinsic dimension of
+# the data manifold X is drawn from.
+
+# gamma_0 is the starting value of the "inverse neighborhood size"
+# --- (the smaller gamma_0 is, the larger the neighborhood size is)
+
+# main training loop
+def train(X,
+       n_stop_to_converge=10,  # how many times of no progress do we call convergence?
+       n_iter=500,  # number of flattening steps to perform
        n_iter_inner=1000,  # how many max steps for inner optimization of U, V
        thres_recon=1e-5,  # threshold for reconstruction loss being good enough
-       alpha_max=0.2,  # global parameter for kernel
+       alpha_max=0.5,  # global parameter for kernel
        r_dimcheck_coeff=0.15,  # # radius for checking dimension.
        max_error_dimcheck_ratio=0.3,  # max l0 error with respect to r_dimcheck to stop dimension search
        r_min_coeff=0.15,  # minimum allowed radius for each flattening
@@ -29,11 +65,18 @@ def train(X,n_stop_to_converge=10,  # how many times of no progress do we call c
        save_gif = False, # whether to save gif of flattening process. currently only works for 2D data
        ):
     N, D = X.shape
-    alpha_max = alpha_max/D
-    assert D>1, 'Need at least 2 dimensions to flatten'
-    flatnet = flatnet_nn.FlatteningNetwork()
+    # needed for dist-to-gamma conversion
+    log2 = float(np.log(2))
+
+    # if save gif is set to true but data is not 2D, throw warning but continue running with save_gif = False
+    if save_gif and not (D == 2 or D == 3):
+        print("Warning: save_gif is set to True but data is not 2D or 3D. Setting save_gif to False")
+        save_gif = False
+    #######	## HYPERPARAMETERS ####
+    ##############################
 
     converge_counter = 0
+
     # used to define hyperparameters
     EDM_X = torch.cdist(X, X, p=2)
     edm_max = EDM_X.max()
@@ -58,7 +101,14 @@ def train(X,n_stop_to_converge=10,  # how many times of no progress do we call c
     # track previous intrinsic dimension to avoid redundant searches
     d_prev = 1
 
+    ############# INIT GLOBAL VARIABLES##########
+    # encoder network
+    f = flatnet_nn.FlatteningNetwork()
+    # decoder network
+    g = flatnet_nn.FlatteningNetwork()
     Z = X.clone()
+
+    ################### ANIMATION SAVING #################
 
     if save_gif:
         # print out to user that we are creating a folder to save frames temporarily
@@ -76,169 +126,104 @@ def train(X,n_stop_to_converge=10,  # how many times of no progress do we call c
         # create array to store frames
         frames = []
 
-        # save first frame
-        if D == 2:
-            fig, ax = plt.subplots()
-            ax.scatter(Z[:, 0].detach().numpy(), Z[:, 1].detach().numpy())
-            ax.axis('equal')
-            for spine in ax.spines.values():
-                spine.set_visible(False)
-        elif D == 3:
-            fig = plt.figure()
-            ax = fig.add_subplot(111, projection='3d')
-            ax.axis('off')
-            ax.scatter(Z[:, 0].detach().numpy(), Z[:, 1].detach().numpy(), Z[:, 2].detach().numpy())
+    # ################ MAIN LOOP #########################
+    with trange(n_iter, unit="iters") as pbar:
+        for j in pbar:
+            # if j % 20 == 0:
+            # 	plt.scatter(Z[:,0].detach().numpy(), Z[:,1].detach().numpy())
+            # 	plt.show()
+
+            # STEP 0: stochastically choose center of the neighborhood to
+            # flatten and reconstruct
+            choice = torch.randint(N, (1,))
+            z_c = Z[choice, :]
+
+            # STEP 1: find minimal dimension d we can flatten neighborhood
+            # to and still be able to reconstruct
+
+            # note d is implicitly returned, as U, V are of shape (D, d)
+            U, loss_rdimcheck = find_d(Z, z_c, r_dimcheck, n_iter_inner, d_prev, max_error=thres_recon, max_error_dimcheck_ratio=max_error_dimcheck_ratio)
+
+            # STEP 2: use secant method to find maximal radius that achieves
+            # desired reconstruction loss
+
+            # get needed second observation
+            U, V, loss_rmidpoint = opt_UV(Z, z_c, U, n_iter_inner, r=r_midpoint)
+
+            # radius optimization
+            # begin secant method (note we use log loss for numerical reasons)
+            log_thres_recon = torch.log(torch.Tensor([thres_recon]))
+            r_m2 = r_dimcheck
+            f_m2 = torch.log(loss_rdimcheck) - log_thres_recon
+            r_m1 = (r_min + r_max) / 2
+            f_m1 = torch.log(loss_rmidpoint) - log_thres_recon
+
+            for _ in range(n_iter_rsearch):
+
+                # threshold denominator for numerical stability
+                f_diff = f_m1 - f_m2
+                if torch.abs(f_diff) < 1e-6:
+                    if f_diff >= 0:
+                        f_diff = 1e-6
+                    else:
+                        f_diff = -1e-6
+
+                r = r_m1 - (r_m1 - r_m2) / f_diff * f_m1
+
+                # if we reach either boundary, threshold and exit
+                if r < r_min:
+                    r = r_min
+                elif r > r_max:
+                    r = r_max
+
+                U, V, loss_r = opt_UV(Z, z_c, U, n_iter_inner, r=r)
+                f_r = torch.log(loss_r) - log_thres_recon
+
+                r_m2 = r_m1.clone()
+                f_m2 = f_m1.clone()
+                r_m1 = r.clone()
+                f_m1 = f_r.clone()
+
+                # stopping condition
+                if torch.abs(r_m1 - r_m2) < r_step_min:
+                    break
+
+            # STEP 3: line search for biggest alpha that gets us to desired fidelity
+            if loss_r.item() == 0.0:
+                alpha = float(alpha_max)
+            else:
+                alpha = float(min(alpha_max, np.sqrt(thres_recon / loss_r.item())))
+            # STEP 4: add layer to network
+            Z = Z.detach()
+            U = U.detach().clone()
+            V = V.detach().clone()
+
+            gamma = float(np.log(2)) / (r.item() ** 2)
+            kernel_pre = torch.exp(-gamma * (Z - z_c).pow(2).sum(dim=1, keepdim=True))
+            z_mu_local = (Z * kernel_pre).sum(dim=0, keepdim=True) / kernel_pre.sum()
+
             
-        plt.savefig(f"flatnet_gif_frames/frame_start.png")
-        plt.close()
-        # save frame
-        frames.append(imageio.imread(f"flatnet_gif_frames/frame_start.png"))
+            f_layer = flatnet_nn.FLayer(U, z_mu_local, gamma, alpha)
+            g_layer = flatnet_nn.GLayer(U, V, z_mu_local, z_c, gamma, alpha)
 
-    def per_sample_vector(Z,index:int)->torch.Tensor:
-        choice = torch.tensor(index)
-        z_c = Z[choice, :]
+            # test for convergence
+            Z_new = f_layer(Z)
 
-        # STEP 1: find minimal dimension d we can flatten neighborhood
-        # to and still be able to reconstruct
+            # add centering and normalization to manifold
+            z_mu = Z_new.mean(dim=0, keepdim=True)
+            # normalize by max norm of features
+            z_norm = (Z_new - z_mu).norm(dim=1).max()
 
-        # note d is implicitly returned, as U, V are of shape (D, d)
-        U, loss_rdimcheck = find_d(Z, z_c, r_dimcheck, n_iter_inner, d_prev, max_error=thres_recon, max_error_dimcheck_ratio=max_error_dimcheck_ratio)
+            f_layer.set_normalization(z_mu, z_norm)
+            g_layer.set_normalization(z_mu, z_norm)
 
-        # STEP 2: use secant method to find maximal radius that achieves
-        # desired reconstruction loss
-
-        # get needed second observation
-        U, V, loss_rmidpoint = opt_UV(Z, z_c, U, n_iter_inner, r=r_midpoint)
-
-        # radius optimization
-        # begin secant method (note we use log loss for numerical reasons)
-        log_thres_recon = torch.log(torch.Tensor([thres_recon]))
-        r_m2 = r_dimcheck
-        f_m2 = torch.log(loss_rdimcheck) - log_thres_recon
-        r_m1 = (r_min + r_max) / 2
-        f_m1 = torch.log(loss_rmidpoint) - log_thres_recon
-
-        for _ in range(n_iter_rsearch):
-
-            # threshold denominator for numerical stability
-            f_diff = f_m1 - f_m2
-            if torch.abs(f_diff) < 1e-6:
-                if f_diff >= 0:
-                    f_diff = 1e-6
-                else:
-                    f_diff = -1e-6
-
-            r = r_m1 - (r_m1 - r_m2) / f_diff * f_m1
-
-            # if we reach either boundary, threshold and exit
-            if r < r_min:
-                r = r_min
-            elif r > r_max:
-                r = r_max
-
-            U, V, loss_r = opt_UV(Z, z_c, U, n_iter_inner, r=r)
-            f_r = torch.log(loss_r) - log_thres_recon
-
-            r_m2 = r_m1.clone()
-            f_m2 = f_m1.clone()
-            r_m1 = r.clone()
-            f_m1 = f_r.clone()
-
-            # stopping condition
-            if torch.abs(r_m1 - r_m2) < r_step_min:
-                break
-
-        # STEP 3: line search for biggest alpha that gets us to desired fidelity
-        if loss_r.item() == 0.0:
-            alpha = float(alpha_max)
-        else:
-            alpha = float(min(alpha_max, np.sqrt(thres_recon / loss_r.item())))
-        # STEP 4: add layer to network
-        Z = Z.detach()
-        U = U.detach().clone()
-        V = V.detach().clone()
-
-        gamma = float(np.log(2)) / (r.item() ** 2)
-        kernel_pre = torch.exp(-gamma * (Z - z_c).pow(2).sum(dim=1, keepdim=True))
-        z_mu_local = (Z * kernel_pre).sum(dim=0, keepdim=True) / kernel_pre.sum()
-
-        
-        arg_this = flatnet_nn.arg_per_sample(U, V, z_mu_local,z_c, gamma, alpha=alpha)
-        # test for convergence
-        # Z_new = f_layer(Z)
-        
-
-        # f_layer.set_normalization(z_mu, z_norm)
-        # g_layer.set_normalization(z_mu, z_norm)
-
-        # # apply normalization forward
-        # Z_new = (Z_new - z_mu) / z_norm
-        
-        
-        
-        
-        # # check for convergence
-        # if (Z_new - Z).pow(2).mean().sqrt() < 1e-4:
-        #     # if we don't make any progress, don't add layer. However, we only
-        #     # count convergence once radius is at its maximum
-        #     if r.item() == r_max:
-        #         converge_counter += 1
-        #         if converge_counter >= n_stop_to_converge:
-        #             break
-        #     else:
-        #         converge_counter = 0
-        # else:
-
-        # converge_counter = 0
-        # d_prev = U.shape[1]
-        # # only update representation if we add the layer
-        # Z = Z_new.clone()
-
-
-        return arg_this, r
-        # save gif frame
-        if save_gif:
-            if D == 2:
-                fig, ax = plt.subplots()
-                ax.scatter(Z[:, 0].detach().numpy(), Z[:, 1].detach().numpy())
-                ax.axis('off')
-                for spine in ax.spines.values():
-                    spine.set_visible(False)
-            elif D == 3:
-                fig = plt.figure()
-                ax = fig.add_subplot(111, projection='3d')
-                ax.axis('off')
-                ax.scatter(Z[:, 0].detach().numpy(), Z[:, 1].detach().numpy(), Z[:, 2].detach().numpy())
-                
-            plt.savefig(f"flatnet_gif_frames/frame_{j}.png")
-            plt.close()
-            # save frame
-            frames.append(imageio.imread(f"flatnet_gif_frames/frame_{j}.png"))
-
-        # with torch.no_grad():
-        # 	recon_loss = 0.5*(g(Z) - X).pow(2).mean()
-        pbar.set_postfix({"local_recon": loss_r.item(), \
-                            "d": U.shape[1], "r_ratio": (r / r_max).item(), "alpha": alpha})
-
-
-    for i in range(n_iter):
-        fglayer = flatnet_nn.FGLayer()
-        min_radius = 0
-        # decrease alpha_max with steps
-        alpha_max = alpha_max * 0.9
-        with trange(N, unit="samples") as pbar:
-            for j in pbar:
-            # for j in range(N):
-                arg_this,r_this = per_sample_vector(Z,j)
-                min_radius = min(min_radius, r_this)
-                fglayer.add_arg(arg_this)
-            Z_new = fglayer.encode(Z, with_norm=True)
-
+            # apply normalization forward
+            Z_new = (Z_new - z_mu) / z_norm
             # check for convergence
             if (Z_new - Z).pow(2).mean().sqrt() < 1e-4:
                 # if we don't make any progress, don't add layer. However, we only
                 # count convergence once radius is at its maximum
-                if min_radius == r_max:
+                if r.item() == r_max:
                     converge_counter += 1
                     if converge_counter >= n_stop_to_converge:
                         break
@@ -246,16 +231,18 @@ def train(X,n_stop_to_converge=10,  # how many times of no progress do we call c
                     converge_counter = 0
             else:
                 converge_counter = 0
+                f.add_operation(f_layer)
+                g.add_operation(g_layer)
+                d_prev = U.shape[1]
                 # only update representation if we add the layer
                 Z = Z_new.clone()
-                flatnet.add_operation(fglayer)
 
                 # save gif frame
                 if save_gif:
                     if D == 2:
                         fig, ax = plt.subplots()
                         ax.scatter(Z[:, 0].detach().numpy(), Z[:, 1].detach().numpy())
-                        ax.axis('equal')
+                        ax.axis('off')
                         for spine in ax.spines.values():
                             spine.set_visible(False)
                     elif D == 3:
@@ -264,23 +251,31 @@ def train(X,n_stop_to_converge=10,  # how many times of no progress do we call c
                         ax.axis('off')
                         ax.scatter(Z[:, 0].detach().numpy(), Z[:, 1].detach().numpy(), Z[:, 2].detach().numpy())
                         
-                    plt.savefig(f"flatnet_gif_frames/frame_{i}.png")
+                    plt.savefig(f"flatnet_gif_frames/frame_{j}.png")
                     plt.close()
                     # save frame
-                    frames.append(imageio.imread(f"flatnet_gif_frames/frame_{i}.png"))
-        
+                    frames.append(imageio.imread(f"flatnet_gif_frames/frame_{j}.png"))
+
+            # with torch.no_grad():
+            # 	recon_loss = 0.5*(g(Z) - X).pow(2).mean()
+            pbar.set_postfix({"local_recon": loss_r.item(), \
+                              "d": U.shape[1], "r_ratio": (r / r_max).item(), "alpha": alpha})
+
+    # final gif processing
     if save_gif:
         # save gif to be 6s long. note duration is duration
         # of each frame in ms
-        imageio.mimsave('flatnet_flow.gif', frames, duration=10)
+        imageio.mimsave('flatnet_flow.gif', frames, duration=6000 / len(frames))
         
         # delete auxillery files
         for file_name in os.listdir('flatnet_gif_frames'):
             os.remove(os.path.join('flatnet_gif_frames', file_name))
         os.rmdir('flatnet_gif_frames')
 
-    return flatnet
+    return f, g
 
+
+# ################## HELPER METHODS #####################
 
 # optimize flattening/reconstruction pair per layer
 def opt_UV(Z, z_c, U_0, n_iter_inner, r=-1, kernel=-1):
