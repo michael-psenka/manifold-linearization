@@ -72,7 +72,7 @@ def train(X,
     if save_gif and not (D == 2 or D == 3):
         print("Warning: save_gif is set to True but data is not 2D or 3D. Setting save_gif to False")
         save_gif = False
-    #######	## HYPERPARAMETERS ####
+    ######### HYPERPARAMETERS ####
     ##############################
 
     converge_counter = 0
@@ -81,10 +81,6 @@ def train(X,
     EDM_X = torch.cdist(X, X, p=2)
     edm_max = EDM_X.max()
     edm_min = EDM_X[EDM_X > 0].min()
-
-    EDM_X_inf = EDM_X.clone()
-    EDM_X_inf[EDM_X_inf == 0] = torch.inf
-    edm_maxmin = EDM_X_inf.min(dim=1).values.max()
 
     # radius for checking dimension. Should be as small as possible,
     # but big enough that at every point there's at least one sample
@@ -128,7 +124,7 @@ def train(X,
 
         # create array to store frames
         frames = []
-    r_choice = 0.2 * edm_max
+    r_choice = 0.5 * edm_max
     # ################ MAIN LOOP #########################
     with trange(n_iter, unit="iters") as pbar:
         for j in pbar:
@@ -161,7 +157,6 @@ def train(X,
                     choice = Z_todo[choice]
                     local_Z = torch.empty(0, D)
                 else:
-                    print('111')
                     gamma = log2 / (r_choice ** 2)
                     kernel_choice = 1-torch.exp(-gamma * (Z - z_c).pow(2).sum(dim=1, keepdim=True))
                     mask = (EDM_X[choice, :] < r_choice).flatten() * kernel_choice.flatten()
