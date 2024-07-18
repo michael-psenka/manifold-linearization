@@ -1,6 +1,6 @@
 # Manifold Linearization for Representation Learning
 
-This is a research project focused on the automatic generation of autoencoders with minimal feature size, when the data is supported near an embedded submanifold. Using the geometric structure of the manifold, we can equivalently treat this problem as a manifold flattening problem when the manifold is flattenable[^1]. See our paper, [Representation Learning via Manifold Flattening and Reconstruction](https://www.michaelpsenka.io/papers/flatnet/), for more details.
+This is a research project focused on the automatic generation of autoencoders with minimal feature size, when the data is supported near an embedded submanifold. Using the geometric structure of the manifold, we can equivalently treat this problem as a manifold flattening problem when the manifold is flattenable[^1]. See our paper, [Representation Learning via Manifold Flattening and Reconstruction](https://www.michaelpsenka.io/flatteningnetwork/), for more details.
 
 The main practical benefit: *neural network autoencoders that build themselves from your data!* Instead of trial-and-error guessing what architecture dimensions to use, simply run a geometric process that automatically optimizes layer width, depth, and stopping time based on your data[^2].
 
